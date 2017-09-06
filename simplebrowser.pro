@@ -10,7 +10,8 @@ HEADERS += \
     urllineedit.h \
     webview.h \
     webpage.h \
-    webpopupwindow.h
+    webpopupwindow.h \
+    starplug.h
 
 SOURCES += \
     browser.cpp \
@@ -20,11 +21,13 @@ SOURCES += \
     urllineedit.cpp \
     webview.cpp \
     webpage.cpp \
-    webpopupwindow.cpp
+    webpopupwindow.cpp \
+    starplug.cpp
 
 FORMS += \
     certificateerrordialog.ui \
-    passworddialog.ui
+    passworddialog.ui \
+    starplug.ui
 
 RESOURCES += data/simplebrowser.qrc
 
