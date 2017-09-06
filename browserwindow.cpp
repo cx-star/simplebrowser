@@ -132,6 +132,7 @@ QSize BrowserWindow::sizeHint() const
 QMenu *BrowserWindow::createFileMenu(TabWidget *tabWidget)
 {
     QMenu *fileMenu = new QMenu(tr("&File"));
+    //(const QString &text, const QObject *receiver, const char *member, const QKeySequence &shortcut = 0)
     fileMenu->addAction(tr("&New Window"), this, &BrowserWindow::handleNewWindowTriggered, QKeySequence::New);
 
     QAction *newTabAction = new QAction(QIcon(QLatin1String(":addtab.png")), tr("New &Tab"), this);
@@ -282,6 +283,7 @@ QMenu *BrowserWindow::createWindowMenu(TabWidget *tabWidget)
     previousTabAction->setShortcuts(shortcuts);
     connect(previousTabAction, &QAction::triggered, tabWidget, &TabWidget::previousTab);
 
+    //BrowserWindow之间切换
     connect(menu, &QMenu::aboutToShow, [this, menu, nextTabAction, previousTabAction]() {
         menu->clear();
         menu->addAction(nextTabAction);
@@ -311,27 +313,28 @@ QMenu *BrowserWindow::createHelpMenu()
 QToolBar *BrowserWindow::createToolBar()
 {
     QToolBar *navigationBar = new QToolBar(tr("Navigation"));
-    navigationBar->setAllowedAreas(Qt::TopToolBarArea | Qt::BottomToolBarArea);
-    navigationBar->toggleViewAction()->setEnabled(false);
+    navigationBar->setAllowedAreas(Qt::TopToolBarArea | Qt::BottomToolBarArea);//areas where the toolbar may be placed
+    navigationBar->toggleViewAction()->setEnabled(false);//不显示可选项（开启或关闭action）
 
-    m_historyBackAction = new QAction(this);
+    m_historyBackAction = new QAction(this);//后退
     QList<QKeySequence> backShortcuts = QKeySequence::keyBindings(QKeySequence::Back);
-    for (auto it = backShortcuts.begin(); it != backShortcuts.end();) {
+    for (auto it = backShortcuts.begin(); it != backShortcuts.end();) {//自动类型推断和返回值占位
         // Chromium already handles navigate on backspace when appropriate.
         if ((*it)[0] == Qt::Key_Backspace)
-            it = backShortcuts.erase(it);
+            it = backShortcuts.erase(it);//移除并返回下一个
         else
             ++it;
     }
     // For some reason Qt doesn't bind the dedicated Back key to Back.
-    backShortcuts.append(QKeySequence(Qt::Key_Back));
+    backShortcuts.append(QKeySequence(Qt::Key_Back));//从backShortcuts删除Key_Backspace,添加Key_Back
+
     m_historyBackAction->setShortcuts(backShortcuts);
     m_historyBackAction->setIconVisibleInMenu(false);
     m_historyBackAction->setIcon(QIcon(QStringLiteral(":go-previous.png")));
     connect(m_historyBackAction, &QAction::triggered, [this]() {
         m_tabWidget->triggerWebPageAction(QWebEnginePage::Back);
     });
-    navigationBar->addAction(m_historyBackAction);
+    navigationBar->addAction(m_historyBackAction);//添加到navigationBar
 
     m_historyForwardAction = new QAction(this);
     QList<QKeySequence> fwdShortcuts = QKeySequence::keyBindings(QKeySequence::Forward);
@@ -357,8 +360,13 @@ QToolBar *BrowserWindow::createToolBar()
     navigationBar->addAction(m_stopReloadAction);
 
     navigationBar->addWidget(m_urlLineEdit);
-
     int size = m_urlLineEdit->sizeHint().height();
+
+    m_starPlug = new starPlug(this);
+    navigationBar->addWidget(m_starPlug);
+    m_starPlug->setBrowserWindow(this);
+    m_starPlug->setTabWindow(m_tabWidget);
+
     navigationBar->setIconSize(QSize(size, size));
     return navigationBar;
 }

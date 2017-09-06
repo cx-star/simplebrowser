@@ -2,7 +2,7 @@ TEMPLATE = app
 TARGET = simplebrowser
 QT += webenginewidgets
 CONFIG += c++11
-
+PRECOMPILED_HEADER += utf8.h
 HEADERS += \
     browser.h \
     browserwindow.h \
@@ -11,7 +11,8 @@ HEADERS += \
     webview.h \
     webpage.h \
     webpopupwindow.h \
-    starplug.h
+    starplug.h \
+    utf8.h
 
 SOURCES += \
     browser.cpp \

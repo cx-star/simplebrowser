@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
@@ -43,6 +43,7 @@
 
 #include <QMainWindow>
 #include <QWebEnginePage>
+#include "starplug.h"
 
 QT_BEGIN_NAMESPACE
 class QProgressBar;
@@ -51,6 +52,7 @@ QT_END_NAMESPACE
 class TabWidget;
 class UrlLineEdit;
 class WebView;
+class starPlug;
 
 class BrowserWindow : public QMainWindow
 {
@@ -98,6 +100,7 @@ private:
     QAction *m_reloadAction;
     QAction *m_stopReloadAction;
     UrlLineEdit *m_urlLineEdit;
+    starPlug *m_starPlug;
     QString m_lastSearch;
 };
 
