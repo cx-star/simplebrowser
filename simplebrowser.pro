@@ -30,8 +30,6 @@ FORMS += \
     passworddialog.ui \
     starplug.ui
 
-RESOURCES += data/simplebrowser.qrc
+RESOURCES += data/simplebrowser.qrc \
+    r.qrc
 
-# install
-target.path = $$[QT_INSTALL_EXAMPLES]/webenginewidgets/simplebrowser
-INSTALLS += target

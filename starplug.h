@@ -4,6 +4,7 @@
 #include <QWidget>
 #include "browserwindow.h"
 #include "tabwidget.h"
+#include "webview.h"
 
 namespace Ui {
 class starPlug;
@@ -25,12 +26,18 @@ public:
 
 private slots:
     void on_pushButton_clicked();
+    void login_loadFinished(bool b);
 
 private:
     Ui::starPlug *ui;
     QStringList m_comboBoxList;
     TabWidget *m_TabWindow;
     BrowserWindow *m_browserWindow;
+    QString jQuery;
+    WebView *m_loginWebWiew;
+    int currentNameIndex;
+    const QString& getCurrentName(int ci);
+    const QString& getCurrentPassword(int ci);
 };
 
 #endif // STARPLUG_H

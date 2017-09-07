@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/js">
+        <file alias="q.js">jquery.min.js</file>
+    </qresource>
+</RCC>
