@@ -1,6 +1,7 @@
 ﻿#ifndef STARPLUG_H
 #define STARPLUG_H
 
+#include <QTimer>
 #include <QWidget>
 #include "browserwindow.h"
 #include "tabwidget.h"
@@ -38,6 +39,9 @@ private:
     int currentNameIndex;
     const QString& getCurrentName(int ci);
     const QString& getCurrentPassword(int ci);
+    QTimer *timer;
+    int autoRunIndex;
+    void autoRun(int index);
 };
 
 #endif // STARPLUG_H
