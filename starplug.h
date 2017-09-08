@@ -28,6 +28,12 @@ public:
 private slots:
     void on_pushButton_clicked();
     void login_loadFinished(bool b);
+    void newTabViewCreated();
+    void main_loadFinished(bool b);
+
+    void on_pushButtonLogin_clicked();
+    void autoRun(int index);
+    void autoRun();
 
 private:
     Ui::starPlug *ui;
@@ -37,11 +43,11 @@ private:
     QString jQuery;
     WebView *m_loginWebWiew;
     int currentNameIndex;
-    const QString& getCurrentName(int ci);
-    const QString& getCurrentPassword(int ci);
-    QTimer *timer;
+    QString getCurrentName(int ci);
+    QString getCurrentPassword(int ci);
+    QTimer *m_timer;
+    void waitTimer();
     int autoRunIndex;
-    void autoRun(int index);
 };
 
 #endif // STARPLUG_H

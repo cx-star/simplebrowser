@@ -38,7 +38,14 @@
    <item>
     <widget class="QPushButton" name="pushButton">
      <property name="text">
-      <string>PushButton</string>
+      <string>打开首页</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="pushButtonLogin">
+     <property name="text">
+      <string>登录</string>
      </property>
     </widget>
    </item>

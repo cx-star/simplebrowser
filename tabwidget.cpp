@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
@@ -65,6 +65,8 @@ TabWidget::TabWidget(QWidget *parent)
     setElideMode(Qt::ElideRight);
 
     connect(this, &QTabWidget::currentChanged, this, &TabWidget::handleCurrentChanged);
+
+    m_profile = new QWebEngineProfile();
 }
 
 TabWidget::~TabWidget()
@@ -200,12 +202,13 @@ void TabWidget::setupView(WebView *webView)
 WebView *TabWidget::createTab(bool makeCurrent)
 {
     WebView *webView = new WebView;
-    WebPage *webPage = new WebPage(QWebEngineProfile::defaultProfile(), webView);
+    WebPage *webPage = new WebPage(m_profile, webView);
     webView->setPage(webPage);
     setupView(webView);
     addTab(webView, tr("(Untitled)"));
     if (makeCurrent)
         setCurrentWidget(webView);
+    emit newTabCreated();
     return webView;
 }
 

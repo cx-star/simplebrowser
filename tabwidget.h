@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
@@ -68,6 +68,7 @@ signals:
     void urlChanged(const QUrl &url);
     void iconChanged(const QIcon &icon);
     void webActionEnabledChanged(QWebEnginePage::WebAction action, bool enabled);
+    void newTabCreated();
 
 public slots:
     // current tab/page slots
@@ -90,6 +91,7 @@ private slots:
 private:
     WebView *webView(int index) const;
     void setupView(WebView *webView);
+    QWebEngineProfile *m_profile;
 };
 
 #endif // TABWIDGET_H
