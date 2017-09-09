@@ -24,30 +24,39 @@ public:
 
     BrowserWindow *browserWindow() const;
     void setBrowserWindow(BrowserWindow *browserWindow);
-
+signals:
+    void haveAResultSignal(const QString& r);
 private slots:
     void on_pushButton_clicked();
     void login_loadFinished(bool b);
     void newTabViewCreated();
-    void main_loadFinished(bool b);
+    void view_loadFinished(bool b);
 
     void on_pushButtonLogin_clicked();
     void autoRun(int index);
     void autoRun();
 
+    void haveAResultSlot(const QString&s);
 private:
     Ui::starPlug *ui;
     QStringList m_comboBoxList;
     TabWidget *m_TabWindow;
     BrowserWindow *m_browserWindow;
     QString jQuery;
-    WebView *m_loginWebWiew;
+    WebView *m_loginWebView;
+    WebView *m_WebViewNum,*m_WebViewClass;
     int currentNameIndex;
     QString getCurrentName(int ci);
     QString getCurrentPassword(int ci);
     QTimer *m_timer;
-    void waitTimer();
+    void waitTimer(int t=1*1000);
     int autoRunIndex;
+    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunBindQQ,
+                     autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunExitTimer,autoRunPopwinConfirm,
+                    autoRunReLoad,autoRunClose,
+                    execLineEdit,execLineEditWithResult};
+    QString runJavaScriptResult;
+
 };
 
 #endif // STARPLUG_H

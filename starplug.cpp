@@ -12,7 +12,7 @@ starPlug::starPlug(QWidget *parent) :
     ui(new Ui::starPlug)
 {
     ui->setupUi(this);
-    m_comboBoxList<<"打开首页"<<"登录"<<"执行";
+    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
 
@@ -25,6 +25,8 @@ starPlug::starPlug(QWidget *parent) :
 
     m_timer = new QTimer(this);
     connect(m_timer,SIGNAL(timeout()),this,SLOT(autoRun()));
+
+    connect(this,SIGNAL(haveAResultSignal(QString)),this,SLOT(haveAResultSlot(QString)));
 }
 
 starPlug::~starPlug()
@@ -36,13 +38,18 @@ void starPlug::on_pushButton_clicked()
 {
     switch (ui->comboBox->currentIndex()) {
     case 0://打开首页
-        autoRun(0);
+        autoRun(autoRunMain);
         break;
     case 1://登录        
-        autoRun(1);
+        autoRun(autoRunLogin);
+        break;
+    case 2:
+        autoRun(execLineEdit);
+        break;
+    case 3:
+        autoRun(execLineEditWithResult);
         break;
     default:
-        autoRun(10);
         break;
     }
 }
@@ -56,22 +63,48 @@ void starPlug::login_loadFinished(bool b)
 void starPlug::newTabViewCreated()
 {
     qDebug()<<"newTabViewCreated"<<autoRunIndex;
-    if(autoRunIndex==2){
-        autoRun(2);//绑定main_loadFinished
-    }
-    else{
-        QMessageBox::warning(this,"错误",QString("newTabViewCreated %1").arg(autoRunIndex));
+
+    switch (autoRunIndex) {
+    case autoRunLogin:
+        autoRun(autoRunNum);
+        break;
+    case autoRunOpenClass:
+        autoRun(autoRunClassOpened);
+        break;
+    default:
+        break;
     }
 }
 
-void starPlug::main_loadFinished(bool b)
+void starPlug::view_loadFinished(bool b)
 {
-    qDebug()<<b<<" main_loadFinished "<<autoRunIndex;
-    if(autoRunIndex==3||autoRunIndex==4||autoRunIndex==5){
-        waitTimer();
-    }
-    else{
-        QMessageBox::warning(this,"错误",QString("main_loadFinished %1").arg(autoRunIndex));
+    qDebug()<<b<<" num_loadFinished "<<autoRunIndex;
+    if(QObject::sender()==m_WebViewNum){
+        switch (autoRunIndex) {
+        case autoRunNum:
+            autoRunIndex = autoRunBindQQ;
+            waitTimer();
+            break;
+        case autoRunReLoad:
+            autoRunIndex = autoRunClose;
+            waitTimer(5*1000);
+            break;
+        default:
+            qDebug()<<"QObject::sender()==m_WebViewNum default";
+            break;
+        }
+    }else if(QObject::sender()==m_WebViewClass){
+        switch (autoRunIndex) {
+        case autoRunClassOpened:
+            autoRunIndex = autoRunSetTimer;
+            waitTimer();
+            break;
+        default:
+            qDebug()<<"QObject::sender()==m_WebViewClass default";
+            break;
+        }
+    }else{
+        qDebug()<<"QObject::sender()?????";
     }
 }
 
@@ -89,83 +122,129 @@ QString starPlug::getCurrentPassword(int ci)
     return QString("cx153719");
 }
 
-void starPlug::waitTimer()
+void starPlug::waitTimer(int t)
 {
     qDebug()<<"waitTimer";
-    m_timer->start(3*1000);
-}
-
-void starPlug::autoRun(int index)
-{
-    qDebug()<<"in autoRun: "<<index;
-    int tabCount = m_TabWindow->count();
-    switch (index) {
-    case 0://打开首页
-        for(int i=tabCount-1;i>=0;i--)
-            m_TabWindow->closeTab(i);
-        m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");
-        m_loginWebWiew = m_TabWindow->currentWebView();
-
-        connect(m_loginWebWiew,SIGNAL(loadFinished(bool)),this,SLOT(login_loadFinished(bool)));
-        break;
-    case 1://登录
-        connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(newTabViewCreated()));//1-2
-        m_loginWebWiew->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentName(currentNameIndex)));
-        m_loginWebWiew->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg(getCurrentPassword(currentNameIndex)));
-        m_loginWebWiew->page()->runJavaScript("$('.login_button').click()");
-        break;
-    case 2://分数界面。newTabViewCreated自动调用
-        if(m_TabWindow->count()==2&&m_TabWindow->currentWebView()->title().contains("宣法在线")){
-            connect(m_TabWindow->currentWebView(),SIGNAL(loadFinished(bool)),this,SLOT(main_loadFinished(bool)));//2-3
-            qDebug()<<"connect main_loadFinished";
-        }else{
-            autoRunIndex--;//原地踏步
-            qDebug()<<"autoRunIndex--";
-            //QMessageBox::warning(this,"分数界面错误",QString("m_TabWindow->count %1 %2").arg(m_TabWindow->count()).arg(m_TabWindow->currentWebView()->title()));
-        }
-        waitTimer();
-        break;
-    case 3://打开计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("bps.remCook('bindQQ')");
-        qDebug()<<"bindQQ";
-        waitTimer();
-        //上个case已经connect,3-4
-        break;
-    case 4://打开计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href')");
-        qDebug()<<"href";
-        waitTimer();
-        //上个case已经connect,3-4
-        break;
-    case 5://计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("sps.startTiming('timer',10000)");
-        qDebug()<<"startTiming";
-        waitTimer();
-        break;
-    case 6://计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("sps.exitStudy('timer')");
-        qDebug()<<"exitStudy";
-        waitTimer();
-        break;
-    case 7://计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("$('#popwinConfirm').click()");
-        qDebug()<<"popwinConfirm";
-        waitTimer();
-        break;
-    default:
-        qDebug()<<ui->lineEdit->text();
-        m_TabWindow->currentWebView()->page()->runJavaScript(ui->lineEdit->text());
-        break;
-    }
-    autoRunIndex++;
-    qDebug()<<"out autoRun:"<<autoRunIndex;
+    m_timer->start(t);
 }
 
 void starPlug::autoRun()
 {
     qDebug()<<"autoRun()";
-    autoRun(autoRunIndex);
     m_timer->stop();
+    autoRun(autoRunIndex);
+}
+
+void starPlug::haveAResultSlot(const QString &s)
+{
+    runJavaScriptResult.clear();
+    runJavaScriptResult.append(s);
+    qDebug()<<"haveAResultSlot "<<runJavaScriptResult;
+}
+
+void starPlug::autoRun(int index)
+{
+    autoRunIndex = index;
+    qDebug()<<"in autoRun: "<<index;
+    bool toNext(false),needTimer(false);
+    int tabCount = m_TabWindow->count();
+    switch (index) {
+    case autoRunMain://打开首页
+        for(int i=tabCount-1;i>=0;i--)
+            m_TabWindow->closeTab(i);//关闭所有页面，最后一个页面被关闭后会新建一个空页面
+        m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
+        m_loginWebView = m_TabWindow->currentWebView();
+        connect(m_loginWebView,SIGNAL(loadFinished(bool)),this,SLOT(login_loadFinished(bool)));
+        toNext = false;needTimer = false;break;
+    case autoRunLogin://登录
+        connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(newTabViewCreated()));//1-2
+        m_loginWebView->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentName(currentNameIndex)));
+        m_loginWebView->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg(getCurrentPassword(currentNameIndex)));
+        m_loginWebView->page()->runJavaScript("$('.login_button').click()");
+        toNext = false;needTimer = false;break;//到newTabViewCreated中处理autoRun(autoRunNum1);
+    case autoRunNum://分数界面。newTabViewCreated自动调用
+        //首页："湖北省国家工作人员学法用法考试平台_法宣在线"，分数界面：“法宣在线”
+        qDebug()<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
+        if( m_TabWindow->count()!=2 || m_TabWindow->currentWebView()->title()!=(QString("法宣在线"))){
+            qDebug()<<"autoRunNum autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
+            toNext = false;needTimer = true;
+        }else{
+            //num_loadFinished中waitTimer,超时后下一步
+            m_WebViewNum = m_TabWindow->currentWebView();
+            connect(m_WebViewNum,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+            qDebug()<<"connect num_loadFinished";
+            toNext = false;needTimer = false;
+        }
+        break;
+    case autoRunBindQQ://打开计时界面
+        m_TabWindow->currentWebView()->page()->runJavaScript("bps.remCook('bindQQ')");
+        qDebug()<<"bindQQ";
+        toNext = true;needTimer = true;break;
+    case autoRunOpenClass://打开计时界面
+        //m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href')");
+        m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href'))");
+        qDebug()<<"href";
+        toNext = false;needTimer = false;break;//到newTabViewCreated中处理autoRun(autoRunClassOpened);
+        break;
+    case autoRunClassOpened:
+        qDebug()<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
+        if( m_TabWindow->count()!=3 || m_TabWindow->currentWebView()->title()!=(QString("课程"))){
+            qDebug()<<"autoRunClassOpened autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
+            toNext = false;needTimer = true;
+        }else{
+            //num_loadFinished中waitTimer,超时后下一步
+            m_WebViewClass = m_TabWindow->currentWebView();
+            connect(m_WebViewClass,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+            qDebug()<<"connect m_WebViewClass view_loadFinished";
+            toNext = false;needTimer = false;
+        }
+        break;
+    case autoRunSetTimer://计时界面
+        m_TabWindow->currentWebView()->page()->runJavaScript("sps.startTiming('timer',10000)");
+        qDebug()<<"startTiming";
+        toNext = true;needTimer = true;break;
+    case autoRunExitTimer://计时界面
+        m_TabWindow->currentWebView()->page()->runJavaScript("sps.exitStudy('timer')");
+        qDebug()<<"exitStudy";
+        toNext = true;needTimer = true;break;
+    case autoRunPopwinConfirm://计时界面
+        m_TabWindow->currentWebView()->page()->runJavaScript("$('#popwinConfirm').click()");
+        qDebug()<<"popwinConfirm";
+        toNext = true;needTimer = true;break;
+    case autoRunReLoad:
+        if(m_TabWindow->currentWebView()==m_WebViewNum){
+            m_WebViewNum->reload();
+        }
+        toNext = false;needTimer = false;//num_loadFinished中处理
+        break;
+    case autoRunClose:
+        m_TabWindow->closeTab(m_TabWindow->currentIndex());
+        toNext = false;needTimer = false;break;
+    case execLineEdit:
+        qDebug()<<ui->lineEdit->text();
+        m_TabWindow->currentWebView()->page()->runJavaScript(ui->lineEdit->text());
+        toNext = false;needTimer = false;break;
+    case execLineEditWithResult:
+        qDebug()<<ui->lineEdit->text();
+        //网上例子ui.myWebView->page()->toHtml([textEdit](const QString &result){ textEdit->setHtml(result); });
+        m_TabWindow->currentWebView()->page()->runJavaScript(ui->lineEdit->text(),[this](const QVariant& r){emit haveAResultSignal(r.toString());});
+        //qDebug()<<"execLineEditWithResult "<<runJavaScriptResult;
+        //成功m_TabWindow->currentWebView()->page()->runJavaScript(ui->lineEdit->text(),[](const QVariant& r){qDebug()<<r;});
+        toNext = false;needTimer = false;break;
+    default:
+        toNext = false;needTimer = false;break;
+    }
+
+    if(needTimer){
+        waitTimer();
+    }/*else{//超时槽函数有stop
+        m_timer->stop();
+    }*/
+    if(toNext){
+        autoRunIndex++;
+    }
+
+    qDebug()<<"out autoRun:"<<autoRunIndex;
 }
 
 BrowserWindow *starPlug::browserWindow() const
