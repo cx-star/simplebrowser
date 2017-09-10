@@ -33,3 +33,7 @@ FORMS += \
 RESOURCES += data/simplebrowser.qrc \
     r.qrc
 
+DISTFILES += \
+    userPassword.txt
+
+DESTDIR = ../simplebrowser

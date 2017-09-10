@@ -28,7 +28,6 @@ signals:
     void haveAResultSignal(const QString& r);
 private slots:
     void on_pushButton_clicked();
-    void login_loadFinished(bool b);
     void newTabViewCreated();
     void view_loadFinished(bool b);
 
@@ -43,20 +42,23 @@ private:
     TabWidget *m_TabWindow;
     BrowserWindow *m_browserWindow;
     QString jQuery;
-    WebView *m_loginWebView;
+    WebView *m_WebViewLogin;
     WebView *m_WebViewNum,*m_WebViewClass;
     int currentNameIndex;
-    QString getCurrentName(int ci);
-    QString getCurrentPassword(int ci);
+    QString getCurrentName();
+    QString getCurrentPassword();
     QTimer *m_timer;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
     enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunBindQQ,
                      autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunExitTimer,autoRunPopwinConfirm,
-                    autoRunReLoad,autoRunClose,
+                    autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
-    QString runJavaScriptResult;
-
+    QString mm_runJavaScriptResult;
+    void waitViewNum(bool &toNext, bool &needTimer);
+    QStringList userInfoAll,userInfoCur,userStudyResult;
+    int userInfoListIndex;
+    int getTodayResult();
 };
 
 #endif // STARPLUG_H

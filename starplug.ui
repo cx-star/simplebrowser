@@ -52,7 +52,10 @@
    <item>
     <widget class="QCheckBox" name="checkBox">
      <property name="text">
-      <string>CheckBox</string>
+      <string>自动下一个</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
