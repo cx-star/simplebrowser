@@ -258,6 +258,7 @@ void starPlug::autoRun(int index)
             //num_loadFinished中waitTimer,超时后下一步
             m_WebViewClass = m_TabWindow->currentWebView();
             connect(m_WebViewClass,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+            m_WebViewClass->reload();//网速太快时，来不及connect……
             qDebug()<<"connect m_WebViewClass view_loadFinished";
             toNext = false;needTimer = false;
         }
