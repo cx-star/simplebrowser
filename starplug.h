@@ -3,6 +3,7 @@
 
 #include <QTimer>
 #include <QWidget>
+#include <QSettings>
 #include "browserwindow.h"
 #include "tabwidget.h"
 #include "webview.h"
@@ -36,6 +37,10 @@ private slots:
     void autoRun();
 
     void haveAResultSlot(const QString&s);
+
+
+    void Save(bool b_TotalNum,bool b_ErrorId,const QString& s);
+    void copy(const QString& s);
 private:
     Ui::starPlug *ui;
     QStringList m_comboBoxList;
@@ -45,20 +50,24 @@ private:
     WebView *m_WebViewLogin;
     WebView *m_WebViewNum,*m_WebViewClass;
     int currentNameIndex;
-    QString getCurrentName();
+    QString getCurrentUserId();
     QString getCurrentPassword();
+    int getIniTotalNum();
+    int getCurrentOldNum();
     QTimer *m_timer;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
-    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunBindQQ,
+    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunCheckNum,autoRunBindQQ,
                      autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunExitTimer,autoRunPopwinConfirm,
                     autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
-    QString mm_runJavaScriptResult;
+    QString m_runJavaScriptResult;
     void waitViewNum(bool &toNext, bool &needTimer);
     QStringList userInfoAll,userInfoCur,userStudyResult;
     int userInfoListIndex;
-    int getTodayResult();
+    void getTodayResult(int* todayNum, int* TotalNum, QString *curName);
+
+    QSettings *m_setting;
 };
 
 #endif // STARPLUG_H

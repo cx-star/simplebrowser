@@ -12,7 +12,8 @@ HEADERS += \
     webpage.h \
     webpopupwindow.h \
     starplug.h \
-    utf8.h
+    utf8.h \
+    stardialogresult.h
 
 SOURCES += \
     browser.cpp \
@@ -23,17 +24,18 @@ SOURCES += \
     webview.cpp \
     webpage.cpp \
     webpopupwindow.cpp \
-    starplug.cpp
+    starplug.cpp \
+    stardialogresult.cpp
 
 FORMS += \
     certificateerrordialog.ui \
     passworddialog.ui \
-    starplug.ui
+    starplug.ui \
+    stardialogresult.ui
 
 RESOURCES += data/simplebrowser.qrc \
     r.qrc
 
-DISTFILES += \
-    userPassword.txt
+DISTFILES +=
 
 DESTDIR = ../simplebrowser
