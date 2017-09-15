@@ -17,7 +17,7 @@ class starPlug : public QWidget
     Q_OBJECT
 
 public:
-    explicit starPlug(QWidget *parent = 0);
+    explicit starPlug(TabWidget* tw,QWidget *parent = 0);
     ~starPlug();
 
     TabWidget *TabWindow() const;
@@ -41,6 +41,10 @@ private slots:
 
     void Save(bool b_TotalNum,bool b_ErrorId,const QString& s);
     void copy(const QString& s);
+
+    void tabUrlChanged(QUrl url);
+    void on_pushButtonExam_clicked();
+
 private:
     Ui::starPlug *ui;
     QStringList m_comboBoxList;
@@ -48,7 +52,7 @@ private:
     BrowserWindow *m_browserWindow;
     QString jQuery;
     WebView *m_WebViewLogin;
-    WebView *m_WebViewNum,*m_WebViewClass;
+    WebView *m_WebViewNum,*m_WebViewClass,*m_WebViewExam;
     int currentNameIndex;
     QString getCurrentUserId();
     QString getCurrentPassword();
@@ -68,6 +72,9 @@ private:
     void getTodayResult(int* todayNum, int* TotalNum, QString *curName);
 
     QSettings *m_setting;
+
+    QMap<QString,QStringList> m_exam;
+    void dealExam();
 };
 
 #endif // STARPLUG_H

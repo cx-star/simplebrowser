@@ -362,10 +362,9 @@ QToolBar *BrowserWindow::createToolBar()
     navigationBar->addWidget(m_urlLineEdit);
     int size = m_urlLineEdit->sizeHint().height();
 
-    m_starPlug = new starPlug(this);
+    m_starPlug = new starPlug(m_tabWidget,this);
     navigationBar->addWidget(m_starPlug);
     m_starPlug->setBrowserWindow(this);
-    m_starPlug->setTabWindow(m_tabWidget);
 
     navigationBar->setIconSize(QSize(size, size));
     return navigationBar;

@@ -9,28 +9,15 @@
 #include <QMessageBox>
 #include <QTextCodec>
 
-starPlug::starPlug(QWidget *parent) :
+starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     QWidget(parent),
-    ui(new Ui::starPlug)
+    ui(new Ui::starPlug),
+    m_TabWindow(tw)
 {
     ui->setupUi(this);
-    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"转换ini";
+    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"html"<<"获取题目和答案";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
-
-//    QFile file;
-//    file.setFileName(":/js/q.js");
-//    file.open(QIODevice::ReadOnly);
-//    jQuery = file.readAll();
-//    jQuery.append("\nvar qt = { 'jQuery': jQuery.noConflict(true) };");
-//    file.close();
-//    QFile file;
-//    file.setFileName("userPassword.txt");
-//    file.open(QIODevice::ReadOnly);
-//    userInfoAll = QString(file.readAll()).split("\r\n");
-//    file.close();
-//    userInfoListIndex=0;
-//    qDebug()<<userInfoAll;
 
     m_timer = new QTimer(this);
     connect(m_timer,SIGNAL(timeout()),this,SLOT(autoRun()));
@@ -56,9 +43,21 @@ starPlug::starPlug(QWidget *parent) :
             m_setting->endGroup();
         }
     }
-    qDebug()<<userInfoAll;
+    //qDebug()<<userInfoAll;
 
     userInfoListIndex = 0;
+
+    connect(m_TabWindow,SIGNAL(urlChanged(QUrl)),this,SLOT(tabUrlChanged(QUrl)));
+
+    QFile file;
+    file.setFileName(QCoreApplication::applicationDirPath()+"/exam.dat");
+    file.open(QIODevice::ReadOnly);
+    if(file.isOpen()){
+        QDataStream in(&file);
+        in>>m_exam;
+        file.close();
+    }
+    ui->pushButtonExam->setText(QString("%1").arg(m_exam.size()));
 }
 
 starPlug::~starPlug()
@@ -83,21 +82,15 @@ void starPlug::on_pushButton_clicked()
         break;
     case 4:
     {
-        foreach (QString s, userInfoAll) {
-            QStringList l = s.split("\t");
-            if(l.size()==3){
-                QString name = l.at(0);
-                QString id = l.at(1);
-                QString pass = l.at(2);
-                m_setting->beginGroup(id);
-                m_setting->setValue("name",name);
-                m_setting->setValue("pw",pass);
-                m_setting->setValue("isVaild",!name.startsWith("*"));
-                m_setting->setValue("TotalNum",100);
-                m_setting->setValue("OldNum",100);
-                m_setting->endGroup();
-            }
-        }
+        dealExam();
+        //QRegExp
+    }
+        break;
+    case 5:
+    {
+
+
+        break;
     }
     default:
         break;
@@ -168,6 +161,8 @@ void starPlug::view_loadFinished(bool b)
             qDebug()<<"QObject::sender()==m_WebViewClass default"<<autoRunIndex;
             break;
         }
+    }else if(QObject::sender()==m_WebViewExam){
+        //QTimer::singleShot(3*1000,dealExam();
     }else{
         qDebug()<<"QObject::sender()?????";
     }
@@ -279,6 +274,60 @@ void starPlug::getTodayResult(int* todayNum,int* TotalNum, QString* curName)
         *curName = m_curName;
 }
 
+void starPlug::dealExam()
+{
+    QString html;
+
+    QWebEnginePage *page = m_TabWindow->currentWebView()->page();
+
+    QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
+    page->toHtml([loop,&html] (const QVariant& r){
+        if(loop->isRunning()){
+            html = r.toString();
+            loop->quit();
+        }
+    });
+    loop->exec();
+
+    QRegExp tm("<h3>(.*)</h3>");
+    QRegExp daAll("<ul(.*)</ul>");
+    QRegExp daOne("<li>.*\">(.*)</li>");
+    tm.setMinimal(true);
+    daAll.setMinimal(true);
+    daOne.setMinimal(true);
+    int pos(0),posDAStart(0),posDAEnd(0);
+    int newAdd(0);
+    while( (pos = tm.indexIn(html,pos)) != -1 ){
+        QStringList TiXuanDa;
+        TiXuanDa.append(tm.cap(1));//题目
+        posDAStart = daAll.indexIn(html,pos);
+        posDAEnd = daAll.matchedLength()+posDAStart;
+        //qDebug()<<posDAStart<<" "<<posDAEnd;
+        while((posDAStart=daOne.indexIn(html,posDAStart))<posDAEnd){
+            if(posDAStart==-1)
+                break;
+            TiXuanDa.append(daOne.cap(1));//答案
+            posDAStart+=daOne.matchedLength();
+        }//匹配完答案选项
+
+        //获取正确答案
+        QRegExp rightDA("正确答案：(\\w+)");//<strong>正确答案：DA
+        if(rightDA.indexIn(html,posDAEnd)!=-1){
+            TiXuanDa.append(rightDA.cap(1));
+        }
+        //获取题目编号
+        QRegExp tmID("id=\\\"(\\w\\d+)");//用户选择：</strong><a id=\"d170146\"
+        if(tmID.indexIn(html,posDAEnd)!=-1){
+            QString id = tmID.cap(1);
+            if(!m_exam.contains(id))
+                newAdd++;
+            m_exam[id]=TiXuanDa;
+        }
+        pos += tm.matchedLength();
+    }
+    ui->pushButtonExam->setText(QString("%1+%2").arg(m_exam.size()-newAdd).arg(newAdd));
+}
+
 void starPlug::autoRun()
 {
     qDebug()<<"autoRun()";
@@ -332,6 +381,14 @@ void starPlug::copy(const QString &s)
     qDebug()<<"copy "<<s;
 }
 
+void starPlug::tabUrlChanged(QUrl url)
+{
+    if(url.toString().contains("exercies_4_t")){
+        m_WebViewExam = m_TabWindow->currentWebView();
+        connect(m_WebViewExam,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+    }
+}
+
 void starPlug::autoRun(int index)
 {
     qDebug()<<"in autoRun: "<<index;
@@ -376,7 +433,7 @@ void starPlug::autoRun(int index)
         getTodayResult(&todayNum,&totalNum,&curName);
         qDebug()<<"autoRunCheckNum "<<" "<<todayNum<<" "<<totalNum<<" "<<getIniTotalNum();
 
-        if(getIniTotalNum()>totalNum){//记录的值比较大，则刷新
+        if((getIniTotalNum()+todayNum)>totalNum){//记录的值比较大，则刷新
             qDebug()<<QString("记录总分：%1，网页显示总分：%2").arg(getIniTotalNum()).arg(totalNum);
             autoRunIndex = autoRunNum-1;
             m_WebViewNum->reload();
@@ -563,7 +620,18 @@ storageName  "Default"
 //}
 /*
 $("[href^='javascript:sps.detail']")
-[<a href=​"javascript:​sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('981','第三章　 七五普法规划知识','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('982','第四章　法治思维和法治方式','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('983','第五章　宪法和宪法相关法','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('984','第六章　公务员简明法律知识','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('985','第七章　公务员法律制度','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('986','第八章　公务员依法行政概述','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('987','第九章　公务员依法行政法律制度','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('988','第十章　公务员依法行政常见违法问题','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')​">​开始练习​</a>​, <a href=​"javascript:​sps.detail('990','第十二章　党内法规的学习宣传','1')​">​开始练习​</a>​]
+[<a href=​"javascript:​sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('981','第三章　 七五普法规划知识','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('982','第四章　法治思维和法治方式','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('983','第五章　宪法和宪法相关法','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('984','第六章　公务员简明法律知识','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('985','第七章　公务员法律制度','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('986','第八章　公务员依法行政概述','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('987','第九章　公务员依法行政法律制度','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('988','第十章　公务员依法行政常见违法问题','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')​">​开始练习​</a>​,
+<a href=​"javascript:​sps.detail('990','第十二章　党内法规的学习宣传','1')​">​开始练习​</a>​]
 
 javascript:sps.myCommit();
 $('.tanchu_btn01').click()
@@ -571,3 +639,47 @@ $('.tanchu_btn01').click()
 $("h3")
 
 */
+
+//    QFile file;
+//    file.setFileName(":/js/q.js");
+//    file.open(QIODevice::ReadOnly);
+//    jQuery = file.readAll();
+//    jQuery.append("\nvar qt = { 'jQuery': jQuery.noConflict(true) };");
+//    file.close();
+//    QFile file;
+//    file.setFileName("userPassword.txt");
+//    file.open(QIODevice::ReadOnly);
+//    userInfoAll = QString(file.readAll()).split("\r\n");
+//    file.close();
+//    userInfoListIndex=0;
+//    qDebug()<<userInfoAll;
+
+
+//    {
+//        foreach (QString s, userInfoAll) {
+//            QStringList l = s.split("\t");
+//            if(l.size()==3){
+//                QString name = l.at(0);
+//                QString id = l.at(1);
+//                QString pass = l.at(2);
+//                m_setting->beginGroup(id);
+//                m_setting->setValue("name",name);
+//                m_setting->setValue("pw",pass);
+//                m_setting->setValue("isVaild",!name.startsWith("*"));
+//                m_setting->setValue("TotalNum",100);
+//                m_setting->setValue("OldNum",100);
+//                m_setting->endGroup();
+//            }
+//        }
+//    }
+
+void starPlug::on_pushButtonExam_clicked()
+{
+    QFile file;
+    file.setFileName(QCoreApplication::applicationDirPath()+"/exam.dat");
+    file.open(QIODevice::WriteOnly);
+
+    QDataStream out(&file);
+    out<<m_exam;
+    file.close();
+}
