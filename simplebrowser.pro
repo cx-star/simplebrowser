@@ -13,7 +13,8 @@ HEADERS += \
     webpopupwindow.h \
     starplug.h \
     utf8.h \
-    stardialogresult.h
+    stardialogresult.h \
+    stardialogexam.h
 
 SOURCES += \
     browser.cpp \
@@ -25,13 +26,15 @@ SOURCES += \
     webpage.cpp \
     webpopupwindow.cpp \
     starplug.cpp \
-    stardialogresult.cpp
+    stardialogresult.cpp \
+    stardialogexam.cpp
 
 FORMS += \
     certificateerrordialog.ui \
     passworddialog.ui \
     starplug.ui \
-    stardialogresult.ui
+    stardialogresult.ui \
+    stardialogexam.ui
 
 RESOURCES += data/simplebrowser.qrc \
     r.qrc

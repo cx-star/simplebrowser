@@ -7,6 +7,7 @@
 #include "browserwindow.h"
 #include "tabwidget.h"
 #include "webview.h"
+#include "stardialogexam.h"
 
 namespace Ui {
 class starPlug;
@@ -27,6 +28,7 @@ public:
     void setBrowserWindow(BrowserWindow *browserWindow);
 signals:
     void haveAResultSignal(const QString& r);
+    void signal_examDataChanged(const QMap<QString,QStringList>& d);
 private slots:
     void on_pushButton_clicked();
     void newTabViewCreated();
@@ -44,6 +46,12 @@ private slots:
 
     void tabUrlChanged(QUrl url);
     void on_pushButtonExam_clicked();
+    void dealExam();
+    void on_checkBox_2_clicked();
+    void on_pushButtonGetExam_clicked();
+    void slot_loadFinishedExamView(bool b);
+    void runExamJs();
+    void commitExam();
 
 private:
     Ui::starPlug *ui;
@@ -74,7 +82,11 @@ private:
     QSettings *m_setting;
 
     QMap<QString,QStringList> m_exam;
-    void dealExam();
+    DialogExam *m_dialogExam;
+    QStringList startExamJSList;
+    int startExamJSListIndex;
+    bool dealExam3over,dealExam4over;
+    int allPageNewAdd;
 };
 
 #endif // STARPLUG_H

@@ -15,7 +15,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     m_TabWindow(tw)
 {
     ui->setupUi(this);
-    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"html"<<"获取题目和答案";
+    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"star";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
 
@@ -58,6 +58,11 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
         file.close();
     }
     ui->pushButtonExam->setText(QString("%1").arg(m_exam.size()));
+
+    m_dialogExam = new DialogExam();
+    connect(this,SIGNAL(signal_examDataChanged(QMap<QString,QStringList>)),m_dialogExam,SLOT(updateExamData(QMap<QString,QStringList>)));
+    emit signal_examDataChanged(m_exam);
+    //m_dialogExam->show();
 }
 
 starPlug::~starPlug()
@@ -88,8 +93,8 @@ void starPlug::on_pushButton_clicked()
         break;
     case 5:
     {
-
-
+        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#user_name').val('%1')").arg("4213810430098"));
+        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg("cx153719"));
         break;
     }
     default:
@@ -123,7 +128,7 @@ void starPlug::view_loadFinished(bool b)
         qDebug()<<"view_loadFinished false!!!";
         return;
     }
-    qDebug()<<b<<" num_loadFinished "<<autoRunIndex;
+    qDebug()<<b<<" view_loadFinished "<<autoRunIndex;
     if(QObject::sender()==m_WebViewLogin){//首次登陆；验证总分数登陆；下一个人登陆
         switch (autoRunIndex) {
         case autoRunMain:
@@ -162,7 +167,15 @@ void starPlug::view_loadFinished(bool b)
             break;
         }
     }else if(QObject::sender()==m_WebViewExam){
-        //QTimer::singleShot(3*1000,dealExam();
+        if(dealExam3over && m_WebViewExam->url().toString().contains("exercies_3_t")){
+            QTimer::singleShot(3*1000,this,SLOT(commitExam()));
+            dealExam3over = false;
+            qDebug()<<"m_WebViewExam 3:"<<m_WebViewExam->url().toString();
+        }else if(dealExam4over && m_WebViewExam->url().toString().contains("exercies_4_t")){
+            QTimer::singleShot(3*1000,this,SLOT(dealExam()));
+            dealExam4over = false;
+            qDebug()<<"m_WebViewExam 4:"<<m_WebViewExam->url().toString();
+        }
     }else{
         qDebug()<<"QObject::sender()?????";
     }
@@ -326,6 +339,25 @@ void starPlug::dealExam()
         pos += tm.matchedLength();
     }
     ui->pushButtonExam->setText(QString("%1+%2").arg(m_exam.size()-newAdd).arg(newAdd));
+    qDebug()<<"newAdd:"<<newAdd;
+    allPageNewAdd += newAdd;
+
+    int curPage,totalPage;
+    QRegExp pageExp("showCurpage\">(\\w).*stotal\">(\\w)");//第<span id="showCurpage">1</span>页&nbsp;&nbsp;共<span id="stotal">4</span>页</span>
+    if(pageExp.indexIn(html)!=-1){
+        curPage = pageExp.cap(1).toInt();
+        totalPage = pageExp.cap(2).toInt();
+    }
+    qDebug()<<QString("第%1页，共%2页").arg(curPage).arg(totalPage);
+    if(curPage!=totalPage){
+        m_WebViewExam->page()->runJavaScript("sps.changePage('next')");
+        QTimer::singleShot(2*1000,this,SLOT(dealExam()));
+        qDebug()<<"next page";
+    }else{
+        m_TabWindow->closeTab(m_TabWindow->currentIndex());
+        QTimer::singleShot(2*1000,this,SLOT(runExamJs()));
+        qDebug()<<"all page";
+    }
 }
 
 void starPlug::autoRun()
@@ -383,7 +415,7 @@ void starPlug::copy(const QString &s)
 
 void starPlug::tabUrlChanged(QUrl url)
 {
-    if(url.toString().contains("exercies_4_t")){
+    if(url.toString().contains("exercies_3_t")){//考试界面
         m_WebViewExam = m_TabWindow->currentWebView();
         connect(m_WebViewExam,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
     }
@@ -682,4 +714,71 @@ void starPlug::on_pushButtonExam_clicked()
     QDataStream out(&file);
     out<<m_exam;
     file.close();
+
+    emit signal_examDataChanged(m_exam);
+}
+
+void starPlug::on_checkBox_2_clicked()
+{
+    if(ui->checkBox_2->isChecked())
+        m_dialogExam->show();
+    else
+        m_dialogExam->hide();
+}
+
+void starPlug::on_pushButtonGetExam_clicked()
+{
+    QString buttonText = ui->pushButtonGetExam->text();
+    if(buttonText.contains("获取题库")){
+        if(m_TabWindow->currentWebView()->url().toString().contains("courseware_1_t")){
+            ui->pushButtonGetExam->setText("结束获取");
+            m_WebViewClass = m_TabWindow->currentWebView();
+            if(startExamJSList.isEmpty()){
+                startExamJSList.append("sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')");
+                startExamJSList.append("sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')");
+                startExamJSList.append("sps.detail('981','第三章　 七五普法规划知识','1')");
+                startExamJSList.append("sps.detail('982','第四章　法治思维和法治方式','1')");
+                startExamJSList.append("sps.detail('983','第五章　宪法和宪法相关法','1')");
+                startExamJSList.append("sps.detail('984','第六章　公务员简明法律知识','1')");
+                startExamJSList.append("sps.detail('985','第七章　公务员法律制度','1')");
+                startExamJSList.append("sps.detail('986','第八章　公务员依法行政概述','1')");
+                startExamJSList.append("sps.detail('987','第九章　公务员依法行政法律制度','1')");
+                startExamJSList.append("sps.detail('988','第十章　公务员依法行政常见违法问题','1')");
+                startExamJSList.append("sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')");
+                startExamJSList.append("sps.detail('990','第十二章　党内法规的学习宣传','1')");
+            }
+            startExamJSListIndex = 0;
+            allPageNewAdd = 0;
+            runExamJs();
+        }
+    }else{
+        ui->pushButtonGetExam->setText("获取题库");
+    }
+}
+
+void starPlug::runExamJs()
+{
+    qDebug()<<"runExamJs "<<startExamJSListIndex;
+    if(ui->pushButtonGetExam->text().contains("结束获取")){
+        m_WebViewClass->page()->runJavaScript(startExamJSList.at(startExamJSListIndex));
+        if(allPageNewAdd==0)
+            startExamJSListIndex++;
+        allPageNewAdd = 0;
+        if(startExamJSListIndex==startExamJSList.size()){
+            startExamJSListIndex = 0;
+        }
+        dealExam3over = true;
+        dealExam4over = true;
+    }
+}
+
+void starPlug::commitExam()
+{
+    m_WebViewExam->page()->runJavaScript("sps.myCommit()");
+    m_WebViewExam->page()->runJavaScript("$('#popwinConfirm').click()");
+}
+
+void starPlug::slot_loadFinishedExamView(bool b)
+{
+    on_pushButtonGetExam_clicked();
 }
