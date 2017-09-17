@@ -8,6 +8,7 @@
 #include <QWebEngineProfile>
 #include <QMessageBox>
 #include <QTextCodec>
+#include <QWebEngineCookieStore>
 
 starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     QWidget(parent),
@@ -47,7 +48,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
 
     userInfoListIndex = 0;
 
-    connect(m_TabWindow,SIGNAL(urlChanged(QUrl)),this,SLOT(tabUrlChanged(QUrl)));
+    connect(m_TabWindow,SIGNAL(urlChanged(QUrl)),this,SLOT(slot_tabUrlChanged(QUrl)));
 
     QFile file;
     file.setFileName(QCoreApplication::applicationDirPath()+"/exam.dat");
@@ -62,6 +63,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     m_dialogExam = new DialogExam();
     connect(this,SIGNAL(signal_examDataChanged(QMap<QString,QStringList>)),m_dialogExam,SLOT(updateExamData(QMap<QString,QStringList>)));
     emit signal_examDataChanged(m_exam);
+    connect(this,SIGNAL(signal_doExamCurTiMuId(QString)),m_dialogExam,SLOT(setComboBoxString(QString)));
     //m_dialogExam->show();
 }
 
@@ -102,7 +104,7 @@ void starPlug::on_pushButton_clicked()
     }
 }
 
-void starPlug::newTabViewCreated()
+void starPlug::slot_newTabViewCreated()
 {
     qDebug()<<"newTabViewCreated"<<autoRunIndex;
     switch (autoRunIndex) {
@@ -121,7 +123,7 @@ void starPlug::newTabViewCreated()
     }
 }
 
-void starPlug::view_loadFinished(bool b)
+void starPlug::slot_viewLoadFinished(bool b)
 {
     if(!b){
         m_TabWindow->currentWebView()->reload();
@@ -167,14 +169,23 @@ void starPlug::view_loadFinished(bool b)
             break;
         }
     }else if(QObject::sender()==m_WebViewExam){
-        if(dealExam3over && m_WebViewExam->url().toString().contains("exercies_3_t")){
+        if(dealExam3over && m_WebViewExam->url().toString().contains("exercies_3_t")){//刷题时的做题
             QTimer::singleShot(3*1000,this,SLOT(commitExam()));
-            dealExam3over = false;
+            dealExam3over = false;//不再次进入
             qDebug()<<"m_WebViewExam 3:"<<m_WebViewExam->url().toString();
-        }else if(dealExam4over && m_WebViewExam->url().toString().contains("exercies_4_t")){
+        }else if(dealExam4over && m_WebViewExam->url().toString().contains("exercies_4_t")){//答案
             QTimer::singleShot(3*1000,this,SLOT(dealExam()));
-            dealExam4over = false;
+            dealExam4over = false;//不再次进入
             qDebug()<<"m_WebViewExam 4:"<<m_WebViewExam->url().toString();
+        }else if(doExamMode3 && m_WebViewExam->url().toString().contains("exercies_3_t")){//做题
+            QTimer::singleShot(3*1000,this,SLOT(doExam()));
+            doExamMode3 = false;//不再次进入
+            qDebug()<<"m_WebViewExam doExamMode 3:"<<m_WebViewExam->url().toString();
+        }else if(doExamMode4 && m_WebViewExam->url().toString().contains("exercies_4_t")){//做题时答案
+            autoRunIndex = autoRunDoExamOver;
+            QTimer::singleShot(3*1000,this,SLOT(autoRun()));
+            doExamMode4 = false;//不再次进入
+            qDebug()<<"m_WebViewExam doExamMode 4:"<<m_WebViewExam->url().toString();
         }
     }else{
         qDebug()<<"QObject::sender()?????";
@@ -183,10 +194,10 @@ void starPlug::view_loadFinished(bool b)
 
 QString starPlug::getCurrentUserId()
 {
-    if(userInfoListIndex ==-1){
+    if(userInfoListIndex ==-1){//重新开始遍历账号
         userInfoListIndex = 0;
     }
-    while(userInfoListIndex<userInfoAll.size()){
+    while(userInfoListIndex<userInfoAll.size()){//返回一个不已*开头的账号（改ini后，不存在这种情况）
         QString s = userInfoAll.at(userInfoListIndex);
         if(!s.startsWith('*')){
             userInfoCur = s.split("\t");
@@ -198,7 +209,7 @@ QString starPlug::getCurrentUserId()
         userInfoListIndex++;
         continue;
     }
-    userInfoListIndex = -1;
+    userInfoListIndex = -1;//账号全部遍历完毕
     return QString();
 }
 
@@ -237,9 +248,9 @@ void starPlug::waitViewNum(bool &toNext, bool &needTimer)
 {
     qDebug()<<"waitViewNum "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
     //首页："湖北省国家工作人员学法用法考试平台_法宣在线"，分数界面：“法宣在线”
-    if(m_TabWindow->count()==1 || m_TabWindow->count()==3){//登录错误
+    if(m_TabWindow->count()==1 || m_TabWindow->count()==3){//登录错误，没有弹出新页面
         autoRunIndex = autoRunLogin-1;
-        userStudyResult.append(getCurrentUserId());
+        userStudyResult.append(getCurrentUserId());//记录错误账号
         userInfoListIndex++;
         toNext = true;needTimer = true;
     }else if(m_TabWindow->currentWebView()->title()==(QString("国家工作人员学法用法及考试平台_登录"))){
@@ -250,10 +261,9 @@ void starPlug::waitViewNum(bool &toNext, bool &needTimer)
     }else if( m_TabWindow->currentWebView()->title()!=(QString("法宣在线"))){
         qDebug()<<"autoRunNum autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
         toNext = false;needTimer = true;
-    }else{
-        //num_loadFinished中waitTimer,超时后下一步
+    }else{//两个tab，且第二个为“法宣在线”
         m_WebViewNum = m_TabWindow->currentWebView();
-        connect(m_WebViewNum,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+        connect(m_WebViewNum,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));
         qDebug()<<"connect view_loadFinished";
         toNext = false;needTimer = false;
     }
@@ -290,9 +300,7 @@ void starPlug::getTodayResult(int* todayNum,int* TotalNum, QString* curName)
 void starPlug::dealExam()
 {
     QString html;
-
     QWebEnginePage *page = m_TabWindow->currentWebView()->page();
-
     QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
     page->toHtml([loop,&html] (const QVariant& r){
         if(loop->isRunning()){
@@ -354,6 +362,7 @@ void starPlug::dealExam()
         QTimer::singleShot(2*1000,this,SLOT(dealExam()));
         qDebug()<<"next page";
     }else{
+        doExamHaveUnKnownId = false;
         m_TabWindow->closeTab(m_TabWindow->currentIndex());
         QTimer::singleShot(2*1000,this,SLOT(runExamJs()));
         qDebug()<<"all page";
@@ -372,6 +381,22 @@ void starPlug::haveAResultSlot(const QString &s)
     m_runJavaScriptResult.clear();
     m_runJavaScriptResult.append(s);
     qDebug()<<"haveAResultSlot "<<m_runJavaScriptResult;
+}
+
+QPair<bool, QVariant>  starPlug::syncRunJavaScript(QWebEnginePage *page, const QString &javascript, int msec)
+{
+    QPair<bool, QVariant> result = qMakePair(false, 0);
+    QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
+    QTimer::singleShot(msec, loop.data(), &QEventLoop::quit);
+    page->runJavaScript(javascript, [loop, &result](const QVariant &val) {
+        if (loop->isRunning()) {
+            result.first = true;
+            result.second = val;
+            loop->quit();
+        }
+    });
+    loop->exec();
+    return result;
 }
 
 void starPlug::Save(bool b_TotalNum, bool b_ErrorId, const QString &s)
@@ -413,11 +438,11 @@ void starPlug::copy(const QString &s)
     qDebug()<<"copy "<<s;
 }
 
-void starPlug::tabUrlChanged(QUrl url)
+void starPlug::slot_tabUrlChanged(QUrl url)
 {
     if(url.toString().contains("exercies_3_t")){//考试界面
         m_WebViewExam = m_TabWindow->currentWebView();
-        connect(m_WebViewExam,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
+        connect(m_WebViewExam,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));
     }
 }
 
@@ -434,17 +459,17 @@ void starPlug::autoRun(int index)
             m_TabWindow->closeTab(i);//关闭所有页面，最后一个页面被关闭后会新建一个空页面
         m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
         m_WebViewLogin = m_TabWindow->currentWebView();
-        connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
-        connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(newTabViewCreated()));//1-2
-        toNext = false;needTimer = false;break;
+        connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//QMessageBox
+        connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(slot_newTabViewCreated()));//autoRunLogin-autoRunNum
+        toNext = false;needTimer = false;break;//view_loadFinished
     case autoRunLogin://登录
-        m_WebViewLogin->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentUserId()));
+        m_WebViewLogin->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentUserId()));//账号错误，getCurrentUserId=-1
         m_WebViewLogin->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg(getCurrentPassword()));
         if(userInfoListIndex!=-1){
             m_WebViewLogin->page()->runJavaScript("$('.close_button').click()");//关闭账号密码错误的提示
             m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
         }
-        else{
+        else{//账号遍历完毕
             qDebug()<<userStudyResult;
             //QMessageBox::about(this,"学习结果",userStudyResult.join("\r\n"));//由此位置结束学习
             starDialogResult d(userStudyResult.join("\r\n"));
@@ -452,11 +477,11 @@ void starPlug::autoRun(int index)
             connect(&d,SIGNAL(pushButtonSave(bool,bool,const QString &)),this,SLOT(Save(bool,bool,const QString &)));
             d.exec();
         }
-        toNext = false;needTimer = false;break;//到newTabViewCreated中处理autoRun(autoRunNum1);
+        toNext = false;needTimer = false;break;//到newTabViewCreated中->autoRunNum
     case autoRunNum://分数界面。newTabViewCreated自动调用
         waitViewNum(toNext,needTimer);
         //未成功toNext = false;needTimer = true;
-        //  成功toNext = false;needTimer = false;connect view_loadFinished
+        //  成功toNext = false;needTimer = false;connect view_loadFinished中->autoRunCheckNum
         break;
     case autoRunCheckNum:
     {
@@ -465,13 +490,13 @@ void starPlug::autoRun(int index)
         getTodayResult(&todayNum,&totalNum,&curName);
         qDebug()<<"autoRunCheckNum "<<" "<<todayNum<<" "<<totalNum<<" "<<getIniTotalNum();
 
-        if((getIniTotalNum()+todayNum)>totalNum){//记录的值比较大，则刷新
+        if((getIniTotalNum()+todayNum)>totalNum){//记录的值比较大，则刷新,退回到上一步
             qDebug()<<QString("记录总分：%1，网页显示总分：%2").arg(getIniTotalNum()).arg(totalNum);
             autoRunIndex = autoRunNum-1;
             m_WebViewNum->reload();
             toNext = true;needTimer = true;break;
         }
-        if(todayNum>=110){//大于110时，直接设置autoRunIndex跳转到autoRunNext
+        if(todayNum>=150){//大于110时，直接设置autoRunIndex跳转到autoRunNext
             autoRunIndex = autoRunNext-1;
             QString curResult;
             curResult = QString("%1\t%2\t今日积分：%3\t总积分：%4").arg(curName).arg(getCurrentUserId()).arg(todayNum).arg(totalNum);
@@ -480,6 +505,8 @@ void starPlug::autoRun(int index)
             m_WebViewNum->disconnect();
             m_TabWindow->closeTab(m_TabWindow->currentIndex());
             qDebug()<<curResult;
+            m_WebViewLogin->page()->profile()->clearHttpCache();
+            //m_WebViewLogin->page()->profile()->cookieStore()->deleteAllCookies();
             toNext = true;needTimer = true;break;
         }
         toNext = true;needTimer = true;break;
@@ -491,7 +518,7 @@ void starPlug::autoRun(int index)
         //m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href')");
         m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href'))");
         qDebug()<<"href";
-        toNext = false;needTimer = false;break;//到newTabViewCreated中处理autoRun(autoRunClassOpened);
+        toNext = false;needTimer = false;break;//到newTabViewCreated中->autoRunClassOpened
         break;
     case autoRunClassOpened:
         qDebug()<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
@@ -499,23 +526,41 @@ void starPlug::autoRun(int index)
             qDebug()<<"autoRunClassOpened autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
             toNext = false;needTimer = true;
         }else{
-            //num_loadFinished中waitTimer,超时后下一步
             m_WebViewClass = m_TabWindow->currentWebView();
-            connect(m_WebViewClass,SIGNAL(loadFinished(bool)),this,SLOT(view_loadFinished(bool)));
-            m_WebViewClass->reload();//网速太快时，来不及connect……
+            connect(m_WebViewClass,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//->autoRunSetTimer
+            m_WebViewClass->reload();//网速太快时，connect来不及生效……即使生效view_loadFinished的m_WebViewClass中只处理autoRunClassOpened->autoRunSetTimer
             qDebug()<<"connect m_WebViewClass view_loadFinished";
             toNext = false;needTimer = false;
         }
         break;
-    case autoRunSetTimer://计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("sps.startTiming('timer',10000)");
+    case autoRunSetTimer://更改计时
+        m_WebViewClass->page()->runJavaScript("sps.startTiming('timer',10000)");
         qDebug()<<"startTiming";
         toNext = true;needTimer = true;break;
-    case autoRunExitTimer://计时界面
-        m_TabWindow->currentWebView()->page()->runJavaScript("sps.exitStudy('timer')");
+    case autoRunDoExam://做练习题
+        m_WebViewClass->page()->runJavaScript("sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')");
+        //同时激活newTabViewCreated（不做处理），tabUrlChanged，连接m_WebViewClass到view_loadFinished
+        dealExam3over = false; dealExam4over = false; doExamMode3 = true; doExamMode4 = true; doExamHaveUnKnownId = false;doExamOneOver=false;
+        toNext = false;needTimer = false;break;
+        break;
+    case autoRunDoExamOver:
+        m_WebViewExam->disconnect();
+        if(doExamHaveUnKnownId){
+            dealExam();//结束后会关闭m_WebViewExam
+        }else{
+            m_TabWindow->closeTab(m_TabWindow->currentIndex());
+        }
+        toNext = true;needTimer = true;break;
+    case autoRunDoExamDealOver:
+        qDebug()<<"autoRunDoExamDealOver "<<doExamHaveUnKnownId;
+        toNext = !doExamHaveUnKnownId;
+        needTimer = true;
+        break;
+    case autoRunExitTimer://退出学习
+        m_WebViewClass->page()->runJavaScript("sps.exitStudy('timer')");
         qDebug()<<"exitStudy";
         toNext = true;needTimer = true;break;
-    case autoRunPopwinConfirm://计时界面,关闭了当前学习计时界面
+    case autoRunPopwinConfirm://确认退出学习，会自动关闭当前页面
         m_WebViewClass->disconnect();
         m_TabWindow->currentWebView()->page()->runJavaScript("$('#popwinConfirm').click()");
         qDebug()<<"popwinConfirm";
@@ -534,7 +579,7 @@ void starPlug::autoRun(int index)
         if(m_TabWindow->currentWebView()==m_WebViewLogin){
             m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
         }
-        toNext = false;needTimer = false;//newTabViewCreated中处理,获取学习总结果
+        toNext = false;needTimer = false;//newTabViewCreated中->autoRunReNum
         break;
     case autoRunReNum:        //第二次登陆
         waitViewNum(toNext,needTimer);
@@ -554,7 +599,7 @@ void starPlug::autoRun(int index)
         bool b= ui->checkBox->isChecked();
         if(b){
             toNext = b;
-            autoRunIndex=autoRunLogin-1;//经过后面++后，为autoRunLogin
+            autoRunIndex=autoRunLogin-1;//退回到autoRunLogin，在autoRunCheckNum中
         }
     }
         needTimer = true;break;
@@ -604,8 +649,7 @@ void starPlug::setTabWindow(TabWidget *TabWindow)
 
 void starPlug::on_pushButtonLogin_clicked()
 {
-    autoRunIndex=1;
-    autoRun(autoRunIndex);
+    autoRun(autoRunLogin);
 }
 
 /*
@@ -652,18 +696,18 @@ storageName  "Default"
 //}
 /*
 $("[href^='javascript:sps.detail']")
-[<a href=​"javascript:​sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('981','第三章　 七五普法规划知识','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('982','第四章　法治思维和法治方式','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('983','第五章　宪法和宪法相关法','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('984','第六章　公务员简明法律知识','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('985','第七章　公务员法律制度','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('986','第八章　公务员依法行政概述','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('987','第九章　公务员依法行政法律制度','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('988','第十章　公务员依法行政常见违法问题','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')​">​开始练习​</a>​,
-<a href=​"javascript:​sps.detail('990','第十二章　党内法规的学习宣传','1')​">​开始练习​</a>​]
+[<a href=​"javascript:sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('981','第三章　 七五普法规划知识','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('982','第四章　法治思维和法治方式','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('983','第五章　宪法和宪法相关法','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('984','第六章　公务员简明法律知识','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('985','第七章　公务员法律制度','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('986','第八章　公务员依法行政概述','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('987','第九章　公务员依法行政法律制度','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('988','第十章　公务员依法行政常见违法问题','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')​">​开始练习​</a>​,
+<a href=​"javascript:sps.detail('990','第十二章　党内法规的学习宣传','1')​">​开始练习​</a>​]
 
 javascript:sps.myCommit();
 $('.tanchu_btn01').click()
@@ -707,15 +751,16 @@ $("h3")
 
 void starPlug::on_pushButtonExam_clicked()
 {
+    ui->pushButtonExam->setEnabled(false);
     QFile file;
     file.setFileName(QCoreApplication::applicationDirPath()+"/exam.dat");
     file.open(QIODevice::WriteOnly);
-
     QDataStream out(&file);
     out<<m_exam;
     file.close();
 
     emit signal_examDataChanged(m_exam);
+    ui->pushButtonExam->setEnabled(true);
 }
 
 void starPlug::on_checkBox_2_clicked()
@@ -748,6 +793,7 @@ void starPlug::on_pushButtonGetExam_clicked()
                 startExamJSList.append("sps.detail('990','第十二章　党内法规的学习宣传','1')");
             }
             startExamJSListIndex = 0;
+            startExamJSListIndexBack = 0;
             allPageNewAdd = 0;
             runExamJs();
         }
@@ -760,15 +806,18 @@ void starPlug::runExamJs()
 {
     qDebug()<<"runExamJs "<<startExamJSListIndex;
     if(ui->pushButtonGetExam->text().contains("结束获取")){
-        m_WebViewClass->page()->runJavaScript(startExamJSList.at(startExamJSListIndex));
-        if(allPageNewAdd==0)
+        m_WebViewClass->page()->runJavaScript(startExamJSList.at(allPageNewAdd!=0?startExamJSListIndexBack:startExamJSListIndex));//tabUrlChanged
+        if(allPageNewAdd==0){
+            startExamJSListIndexBack = startExamJSListIndex;
             startExamJSListIndex++;
+        }
         allPageNewAdd = 0;
         if(startExamJSListIndex==startExamJSList.size()){
             startExamJSListIndex = 0;
         }
         dealExam3over = true;
         dealExam4over = true;
+        doExamMode3 = false;
     }
 }
 
@@ -778,7 +827,94 @@ void starPlug::commitExam()
     m_WebViewExam->page()->runJavaScript("$('#popwinConfirm').click()");
 }
 
-void starPlug::slot_loadFinishedExamView(bool b)
+void starPlug::doExam()
 {
-    on_pushButtonGetExam_clicked();
+//$("[name='allitem'][value='A']").click()
+    TiMuIndexLast = 0;
+    doExamHtml();
 }
+
+void starPlug::doExamHtml()
+{
+    QString html;
+    QWebEnginePage *page = m_TabWindow->currentWebView()->page();
+    QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
+    page->toHtml([loop,&html] (const QVariant& r){
+        if(loop->isRunning()){
+            html = r.toString();
+            loop->quit();
+        }
+    });
+    loop->exec();
+
+    QStringList TiMuIdList;
+    int TiMuIndex;
+    QString CurTiMuId;
+
+    QRegExp allTiMu("hids.*=\"(.*),\">");
+    if(allTiMu.indexIn(html)!=-1){
+        TiMuIdList = allTiMu.cap(1).split(",");
+        //qDebug()<<"TiMuIdList "<<TiMuIdList.size()<<" "<<TiMuIdList;
+    }
+
+    QRegExp idExp("id=\"curti\">(\\w+)<");
+    if(idExp.indexIn(html)!=-1){
+        TiMuIndex = idExp.cap(1).toInt();
+        qDebug()<<"TiMuIndex "<<TiMuIndex;
+    }
+
+    if(TiMuIndex==TiMuIdList.size())
+        doExamOneOver = true;
+    TiMuIndex--;
+    if(TiMuIndex<TiMuIdList.size()){
+        CurTiMuId = QString("d%1").arg(TiMuIdList.at(TiMuIndex));
+        //qDebug()<<"CurTiMuId "<<CurTiMuId;
+        emit signal_doExamCurTiMuId(CurTiMuId);
+        if(m_exam.contains(CurTiMuId)){
+            QStringList list = m_exam.value(CurTiMuId);
+            QString DA = list.last();
+            //qDebug()<<"DA "<<DA<<DA.size();
+            for(int i=0;i<DA.size();i++){
+                QString iDA = QString(DA[i]);//答案列表的第一个字母
+                QString DAString;
+                if(iDA==QString('A')){//单选多选，正确答案存储的为字母
+                    DAString = list.at(1);
+                }else if(iDA==QString('B')){
+                    DAString = list.at(2);
+                }else if(iDA==QString('C')){
+                    DAString = list.at(3);
+                }else if(iDA==QString('D')){
+                    DAString = list.at(4);
+                }
+                DAString.remove(0,3);//答案前后一个空格……
+                if(iDA==QString("对")){//判断题，正确答案储存的为对/错
+                    DAString = QString("对");
+                }else if(iDA==QString("错")){
+                    DAString = QString("错");
+                }
+                //qDebug()<<"iDA "<<iDA<<"DAString "<<DAString;
+                QRegExp eee(QString("name=\"allitem\".*value=\"(\\w)\"> \\w\\.%1</li>").arg(DAString));//html中value="XXX"
+                if(eee.indexIn(html)!=-1){
+                    QString realDAIndex = eee.cap(1);
+                    page->runJavaScript(QString("$(\"[name='allitem'][value='%1']\").click()").arg(realDAIndex));
+                }
+            }
+        }else{
+            doExamHaveUnKnownId = true;
+            qDebug()<<"doExamHaveUnKnownId "<<CurTiMuId;
+        }
+        QTimer::singleShot(500,this,SLOT(doExamNext()));
+    }
+}
+
+void starPlug::doExamNext()
+{
+    QWebEnginePage *page = m_TabWindow->currentWebView()->page();
+    if(!doExamOneOver){//没有做完
+        page->runJavaScript("sps.next()");
+        QTimer::singleShot(500,this,SLOT(doExamHtml()));
+    }else{//题目做完了
+        QTimer::singleShot(1*1000,this,SLOT(commitExam()));
+    }
+}
+

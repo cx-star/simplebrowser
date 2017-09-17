@@ -63,6 +63,11 @@ void DialogExam::updateExamData(const QMap<QString, QStringList> &data)
     }
 }
 
+void DialogExam::setComboBoxString(const QString &id)
+{
+    ui->comboBoxID->setCurrentIndex(ui->comboBoxID->findText(id));
+}
+
 void DialogExam::on_pushButtonSearch_clicked()
 {
     bool b = ui->textEdit->find(ui->lineEditSearch->text(),flag);

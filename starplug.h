@@ -29,29 +29,32 @@ public:
 signals:
     void haveAResultSignal(const QString& r);
     void signal_examDataChanged(const QMap<QString,QStringList>& d);
+    void signal_doExamCurTiMuId(const QString& id);
 private slots:
     void on_pushButton_clicked();
-    void newTabViewCreated();
-    void view_loadFinished(bool b);
+    void slot_newTabViewCreated();
+    void slot_viewLoadFinished(bool b);
 
     void on_pushButtonLogin_clicked();
     void autoRun(int index);
     void autoRun();
 
     void haveAResultSlot(const QString&s);
-
+    QPair<bool, QVariant>  starPlug::syncRunJavaScript(QWebEnginePage *page, const QString &javascript, int msec);
 
     void Save(bool b_TotalNum,bool b_ErrorId,const QString& s);
     void copy(const QString& s);
 
-    void tabUrlChanged(QUrl url);
+    void slot_tabUrlChanged(QUrl url);
     void on_pushButtonExam_clicked();
     void dealExam();
     void on_checkBox_2_clicked();
     void on_pushButtonGetExam_clicked();
-    void slot_loadFinishedExamView(bool b);
     void runExamJs();
     void commitExam();
+    void doExam();
+    void doExamHtml();
+    void doExamNext();
 
 private:
     Ui::starPlug *ui;
@@ -66,11 +69,11 @@ private:
     QString getCurrentPassword();
     int getIniTotalNum();
     int getCurrentOldNum();
-    QTimer *m_timer;
+    QTimer *m_timer,*m_timerDoExam;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
     enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunCheckNum,autoRunBindQQ,
-                     autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunExitTimer,autoRunPopwinConfirm,
+                     autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunDoExam,autoRunDoExamOver,autoRunDoExamDealOver,autoRunExitTimer,autoRunPopwinConfirm,
                     autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
     QString m_runJavaScriptResult;
@@ -84,9 +87,11 @@ private:
     QMap<QString,QStringList> m_exam;
     DialogExam *m_dialogExam;
     QStringList startExamJSList;
-    int startExamJSListIndex;
-    bool dealExam3over,dealExam4over;
+    int startExamJSListIndex,startExamJSListIndexBack;
+    bool dealExam3over,dealExam4over,doExamMode3,doExamMode4;
     int allPageNewAdd;
+    bool doExamHaveUnKnownId,doExamOneOver;
+    int TiMuIndexLast;
 };
 
 #endif // STARPLUG_H

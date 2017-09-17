@@ -26,6 +26,7 @@ public:
 
 public slots:
     void updateExamData(const QMap<QString,QStringList>& data);
+    void setComboBoxString(const QString& id);
 private slots:
     void on_pushButtonSearch_clicked();
 
