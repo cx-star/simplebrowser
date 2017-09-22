@@ -203,6 +203,7 @@ WebView *TabWidget::createTab(bool makeCurrent)
 {
     WebView *webView = new WebView;
     WebPage *webPage = new WebPage(m_profile, webView);
+    //WebPage *webPage = new WebPage(QWebEngineProfile::defaultProfile(),webView);
     webView->setPage(webPage);
     setupView(webView);
     addTab(webView, tr("(Untitled)"));

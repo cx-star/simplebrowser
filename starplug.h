@@ -1,6 +1,7 @@
 ﻿#ifndef STARPLUG_H
 #define STARPLUG_H
 
+#include <QtNetwork>
 #include <QTimer>
 #include <QWidget>
 #include <QSettings>
@@ -58,6 +59,9 @@ private slots:
 
 private:
     Ui::starPlug *ui;
+
+    bool errorNeedReboot;
+
     QStringList m_comboBoxList;
     TabWidget *m_TabWindow;
     BrowserWindow *m_browserWindow;
@@ -72,9 +76,9 @@ private:
     QTimer *m_timer,*m_timerDoExam;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
-    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunCheckNum,autoRunBindQQ,
+    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunCheckNum,autoRunBindQQ,
                      autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunDoExam,autoRunDoExamOver,autoRunDoExamDealOver,autoRunExitTimer,autoRunPopwinConfirm,
-                    autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunReNumReload,autoRunGetResult,autoRunNext,
+                    autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
     QString m_runJavaScriptResult;
     void waitViewNum(bool &toNext, bool &needTimer);

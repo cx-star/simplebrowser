@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QTextCodec>
 #include <QWebEngineCookieStore>
+#include <QtNetwork>
 
 starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     QWidget(parent),
@@ -16,6 +17,9 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     m_TabWindow(tw)
 {
     ui->setupUi(this);
+
+    errorNeedReboot = false;
+
     m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"star";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
@@ -33,13 +37,17 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
         if(s.startsWith("421381043")){
             m_setting->beginGroup(s);
             if(m_setting->value("isVaild").toBool()){
-                QString t = QString("%1\t%2\t%3\t%4\t%5")
-                        .arg(m_setting->value("name").toString())
-                        .arg(s)
-                        .arg(m_setting->value("pw").toString())
-                        .arg(m_setting->value("TotalNum").toString())
-                        .arg(m_setting->value("OldNum").toString());
-                userInfoAll.append(t);
+                if( m_setting->value("Taday").toString()==QDate::currentDate().toString("yy-MM-dd") && m_setting->value("TadayNum").toInt()==150){
+                    qDebug()<<QString("已学满:%1 %2").arg(m_setting->value("name").toString()).arg(s);
+                }else{
+                    QString t = QString("%1\t%2\t%3\t%4\t%5")
+                            .arg(m_setting->value("name").toString())
+                            .arg(s)
+                            .arg(m_setting->value("pw").toString())
+                            .arg(m_setting->value("TotalNum").toString())
+                            .arg(m_setting->value("OldNum").toString());
+                    userInfoAll.append(t);
+                }
             }
             m_setting->endGroup();
         }
@@ -65,6 +73,11 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     emit signal_examDataChanged(m_exam);
     connect(this,SIGNAL(signal_doExamCurTiMuId(QString)),m_dialogExam,SLOT(setComboBoxString(QString)));
     //m_dialogExam->show();
+
+    net_manager = new QNetworkAccessManager(this);
+    connect(net_manager, SIGNAL(finished(QNetworkReply*)),
+          this, SLOT(replyFinished(QNetworkReply*)));
+
 }
 
 starPlug::~starPlug()
@@ -135,6 +148,7 @@ void starPlug::slot_viewLoadFinished(bool b)
         switch (autoRunIndex) {
         case autoRunMain:
             QMessageBox::about(this,"输入验证码",QString("主页载入：%1\r\n请在网页正确位置输入验证码\r\n（仅输入验证么即可）").arg(b));
+            syncRunJavaScript(m_WebViewLogin->page(),)
             break;
         default:
             qDebug()<<"QObject::sender()==m_WebViewLogin default"<<autoRunIndex;
@@ -143,15 +157,15 @@ void starPlug::slot_viewLoadFinished(bool b)
     }else if(QObject::sender()==m_WebViewNum){
         switch (autoRunIndex) {
         case autoRunNum:
-            autoRunIndex = autoRunCheckNum;
+            autoRunIndex = autoRunNum+1;
             waitTimer();
             break;
         case autoRunReNum:
-            autoRunIndex = autoRunReNumReload;
+            autoRunIndex = autoRunReNum+1;
             waitTimer();
             break;
         case autoRunReNumReload:
-            autoRunIndex = autoRunCheckNum;
+            autoRunIndex = autoRunReNumReload+1;
             waitTimer();
             break;
         default:
@@ -194,20 +208,23 @@ void starPlug::slot_viewLoadFinished(bool b)
 
 QString starPlug::getCurrentUserId()
 {
-    if(userInfoListIndex ==-1){//重新开始遍历账号
-        userInfoListIndex = 0;
-    }
-    while(userInfoListIndex<userInfoAll.size()){//返回一个不已*开头的账号（改ini后，不存在这种情况）
-        QString s = userInfoAll.at(userInfoListIndex);
-        if(!s.startsWith('*')){
-            userInfoCur = s.split("\t");
-            if(userInfoCur.size()>=3)
-                return userInfoCur.at(1);
-        }else{
-            qDebug()<<"getCurrentName:pass "<<s;
+    if(!errorNeedReboot){
+        if(userInfoListIndex ==-1){//重新开始遍历账号
+            userInfoListIndex = 0;
         }
-        userInfoListIndex++;
-        continue;
+        ui->pushButtonLogin->setText(QString("登录%1/%2").arg(userInfoListIndex+1).arg(userInfoAll.size()));
+        while(userInfoListIndex<userInfoAll.size()){//返回一个不已*开头的账号（改ini后，不存在这种情况）
+            QString s = userInfoAll.at(userInfoListIndex);
+            if(!s.startsWith('*')){
+                userInfoCur = s.split("\t");
+                if(userInfoCur.size()>=3)
+                    return userInfoCur.at(1);
+            }else{
+                qDebug()<<"getCurrentName:pass "<<s;
+            }
+            userInfoListIndex++;
+            continue;
+        }
     }
     userInfoListIndex = -1;//账号全部遍历完毕
     return QString();
@@ -253,10 +270,12 @@ void starPlug::waitViewNum(bool &toNext, bool &needTimer)
         userStudyResult.append(getCurrentUserId());//记录错误账号
         userInfoListIndex++;
         toNext = true;needTimer = true;
-    }else if(m_TabWindow->currentWebView()->title()==(QString("国家工作人员学法用法及考试平台_登录"))){
+    }else if(m_TabWindow->currentWebView()->title()==QString("国家工作人员学法用法及考试平台_登录")
+             || m_TabWindow->currentWebView()->title()==QString("400 Request Header Or Cookie Too Large")){
         //登录超时。关闭重新登录
         m_TabWindow->closeTab(m_TabWindow->currentIndex());
         autoRunIndex =  autoRunLogin-1;
+        errorNeedReboot = true;
         toNext = true;needTimer = true;
     }else if( m_TabWindow->currentWebView()->title()!=(QString("法宣在线"))){
         qDebug()<<"autoRunNum autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
@@ -404,31 +423,35 @@ void starPlug::Save(bool b_TotalNum, bool b_ErrorId, const QString &s)
     qDebug()<<"save "<<b_TotalNum<<b_ErrorId<<s;
     QStringList list = s.split("\n");
     foreach (QString ss, list) {
-        if(ss.startsWith("42138")){
+        if(b_ErrorId && ss.startsWith("42138")){
             qDebug()<<QString("错误人员姓名：%1，账号：%2，密码：%3")
                       .arg(m_setting->value(ss+"/name").toString())
                       .arg(ss)
                       .arg(m_setting->value(ss+"/pw").toString());
             m_setting->setValue(ss+"/isVaild",false);
         }
-        QStringList ll = ss.split("\t");
-        if(ll.size()==4){
-            QString name = ll.at(0);
-            QString id = ll.at(1);
-            QString todayNum = ll.at(2);
-            QString TotalNum = ll.at(3);
-            int p = todayNum.mid(todayNum.indexOf("：")+1).toInt();
-            int q = TotalNum.mid(TotalNum.indexOf("：")+1).toInt();
-            qDebug()<<QString("姓名：%1，今日积分：%2，总积分：%3").arg(name).arg(p).arg(q);
-            QString errorString;
-            int iniTotalNum = m_setting->value(id+"/TotalNum").toInt();
-            if(iniTotalNum<q)
-            {
-                m_setting->setValue(id+"/TotalNum",q);
-                m_setting->setValue(id+"/OldNum",iniTotalNum);
+        if(b_TotalNum){
+            QStringList ll = ss.split("\t");
+            if(ll.size()==4){
+                QString name = ll.at(0);
+                QString id = ll.at(1);
+                QString todayNum = ll.at(2);
+                QString TotalNum = ll.at(3);
+                int p = todayNum.mid(todayNum.indexOf("：")+1).toInt();
+                int q = TotalNum.mid(TotalNum.indexOf("：")+1).toInt();
+                qDebug()<<QString("姓名：%1，今日积分：%2，总积分：%3").arg(name).arg(p).arg(q);
+                QString errorString;
+                int iniTotalNum = m_setting->value(id+"/TotalNum").toInt();
+                if(iniTotalNum<q)
+                {
+                    m_setting->setValue(id+"/TotalNum",q);
+                    m_setting->setValue(id+"/OldNum",iniTotalNum);
+                    m_setting->setValue(id+"/TadayNum",p);
+                    m_setting->setValue(id+"/Taday",QDate::currentDate().toString("yy-MM-dd"));
+                }
+                else
+                    errorString.append(id+"\r\n");
             }
-            else
-                errorString.append(id+"\r\n");
         }
     }
 }
@@ -483,6 +506,27 @@ void starPlug::autoRun(int index)
         //未成功toNext = false;needTimer = true;
         //  成功toNext = false;needTimer = false;connect view_loadFinished中->autoRunCheckNum
         break;
+    case autoRunCloseNumForReload:
+        if(m_TabWindow->currentWebView()==m_WebViewNum){
+            m_WebViewNum->disconnect();
+            m_TabWindow->closeTab(m_TabWindow->currentIndex());
+            toNext = true;needTimer = true;
+        }else{
+            toNext = false;needTimer = true;
+            qDebug()<<"autoRunCloseNumForReload 关闭失败";
+        }
+        break;
+    case autoRunReLogin:
+        if(m_TabWindow->currentWebView()==m_WebViewLogin){
+            m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
+        }
+        toNext = false;needTimer = false;//newTabViewCreated中->autoRunReNum
+        break;
+    case autoRunReNum:        //第二次登陆
+        waitViewNum(toNext,needTimer);
+        //未成功toNext = false;needTimer = true;
+        //  成功toNext = false;needTimer = false;connect view_loadFinished:autoRunReNum->autoRunReNumReload
+        break;
     case autoRunCheckNum:
     {
         int todayNum,totalNum;
@@ -505,8 +549,8 @@ void starPlug::autoRun(int index)
             m_WebViewNum->disconnect();
             m_TabWindow->closeTab(m_TabWindow->currentIndex());
             qDebug()<<curResult;
-            m_WebViewLogin->page()->profile()->clearHttpCache();
-            //m_WebViewLogin->page()->profile()->cookieStore()->deleteAllCookies();
+            //m_WebViewLogin->page()->profile()->clearHttpCache();这句无效
+            //m_WebViewLogin->page()->profile()->cookieStore()->deleteAllCookies();执行后不能登录。。。
             toNext = true;needTimer = true;break;
         }
         toNext = true;needTimer = true;break;
@@ -522,7 +566,11 @@ void starPlug::autoRun(int index)
         break;
     case autoRunClassOpened:
         qDebug()<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
-        if( m_TabWindow->count()!=3 || m_TabWindow->currentWebView()->title()!=(QString("课程"))){
+        if(m_TabWindow->currentWebView()->title()==(QString("400 Request Header Or Cookie Too Large"))){
+            autoRunIndex =  autoRunLogin-1;
+            errorNeedReboot = true;
+            toNext = false;needTimer = true;
+        }else if( m_TabWindow->count()!=3 || m_TabWindow->currentWebView()->title()!=(QString("课程"))){
             qDebug()<<"autoRunClassOpened autoRunIndex--  "<<m_TabWindow->count()<<m_TabWindow->currentWebView()->title();
             toNext = false;needTimer = true;
         }else{
@@ -565,27 +613,7 @@ void starPlug::autoRun(int index)
         m_TabWindow->currentWebView()->page()->runJavaScript("$('#popwinConfirm').click()");
         qDebug()<<"popwinConfirm";
         toNext = true;needTimer = true;break;
-    case autoRunCloseNumForReload:
-        if(m_TabWindow->currentWebView()==m_WebViewNum){
-            m_WebViewNum->disconnect();
-            m_TabWindow->closeTab(m_TabWindow->currentIndex());
-            toNext = true;needTimer = true;
-        }else{
-            toNext = false;needTimer = true;
-            qDebug()<<"autoRunCloseNumForReload 关闭失败";
-        }
-        break;
-    case autoRunReLogin:
-        if(m_TabWindow->currentWebView()==m_WebViewLogin){
-            m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
-        }
-        toNext = false;needTimer = false;//newTabViewCreated中->autoRunReNum
-        break;
-    case autoRunReNum:        //第二次登陆
-        waitViewNum(toNext,needTimer);
-        //未成功toNext = false;needTimer = true;
-        //  成功toNext = false;needTimer = false;connect view_loadFinished:autoRunReNum->autoRunReNumReload
-        break;
+
     case autoRunReNumReload:
         m_WebViewNum->reload();
         toNext = false;needTimer = false;break;
@@ -916,5 +944,10 @@ void starPlug::doExamNext()
     }else{//题目做完了
         QTimer::singleShot(1*1000,this,SLOT(commitExam()));
     }
+}
+
+void starPlug::replyFinished(QNetworkReply *reply)
+{
+
 }
 
