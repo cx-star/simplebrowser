@@ -10,6 +10,8 @@
 #include <QTextCodec>
 #include <QWebEngineCookieStore>
 #include <QtNetwork>
+#include <QLabel>
+#include <QPicture>
 
 starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     QWidget(parent),
@@ -20,7 +22,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
 
     errorNeedReboot = false;
 
-    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"star";
+    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"star"<<"save page";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
 
@@ -74,7 +76,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     connect(this,SIGNAL(signal_doExamCurTiMuId(QString)),m_dialogExam,SLOT(setComboBoxString(QString)));
     //m_dialogExam->show();
 
-    net_manager = new QNetworkAccessManager(this);
+    net_manager = new QNetworkAccessManager(m_TabWindow);//跟网页不是同一个session
     connect(net_manager, SIGNAL(finished(QNetworkReply*)),
           this, SLOT(replyFinished(QNetworkReply*)));
 
@@ -112,6 +114,14 @@ void starPlug::on_pushButton_clicked()
         m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg("cx153719"));
         break;
     }
+    case 6:
+    {
+        QWebEnginePage *page = m_TabWindow->currentWebView()->page();
+        QAction *a = page->action(QWebEnginePage::SavePage);
+        a->activate(QAction::Trigger);
+
+    }
+        break;
     default:
         break;
     }
@@ -147,8 +157,33 @@ void starPlug::slot_viewLoadFinished(bool b)
     if(QObject::sender()==m_WebViewLogin){//首次登陆；验证总分数登陆；下一个人登陆
         switch (autoRunIndex) {
         case autoRunMain:
-            QMessageBox::about(this,"输入验证码",QString("主页载入：%1\r\n请在网页正确位置输入验证码\r\n（仅输入验证么即可）").arg(b));
-            syncRunJavaScript(m_WebViewLogin->page(),)
+        {
+            qDebug()<<"主页载入成功，请输入验证码";
+            //QMessageBox::about(this,"输入验证码",QString("主页载入：%1\r\n请在网页正确位置输入验证码\r\n（仅输入验证么即可）").arg(b));
+//            QPair<bool,QVariant> r = syncRunJavaScript(m_WebViewLogin->page(),"$('#captcha').attr('src')",5*1000);
+//            if(r.first){
+//                QString s = r.second.toString();
+//                slot_captchaChanged(s);
+//            }
+//            qDebug()<<r.first<<r.second;
+
+//            QString runJavaScriptResult;//
+//            QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
+//            m_TabWindow->currentWebView()->page()->runJavaScript("$('#captcha').attr('src')",[loop,&runJavaScriptResult] (const QVariant& r){
+//                if(loop->isRunning()){
+//                    runJavaScriptResult = r.toString();
+//                    loop->quit();
+//                }
+//            });
+//            //loop->exec();
+//            qDebug()<<runJavaScriptResult;
+            //slot_captchaChanged(runJavaScriptResult);
+
+            //m_WebViewLogin->page()->runJavaScript("$('#captcha').attr('src')",[this](const QVariant& r){emit slot_captchaChanged(r.toString());});
+
+        }
+            connect(m_WebViewLogin->page()->profile(), SIGNAL(downloadRequested(QWebEngineDownloadItem*)),
+                    this, SLOT(downloadRequested(QWebEngineDownloadItem*)));
             break;
         default:
             qDebug()<<"QObject::sender()==m_WebViewLogin default"<<autoRunIndex;
@@ -946,8 +981,39 @@ void starPlug::doExamNext()
     }
 }
 
+void starPlug::slot_captchaChanged(const QString &c)
+{
+    qDebug()<<"slot_captchaChanged";
+    if(net_manager){
+        qDebug()<<c;
+        net_manager->get(QNetworkRequest(QUrl(c)));
+    }
+}
+
 void starPlug::replyFinished(QNetworkReply *reply)
 {
+    QByteArray bytes = reply->readAll();
+    qDebug()<<"replyFinished "<<bytes.size();
+    QImage img = QImage::fromData(bytes);
+    QLabel *label = new QLabel();
+    label->setPixmap(QPixmap::fromImage(img));
+    label->show();
+}
 
+void starPlug::downloadRequested(QWebEngineDownloadItem *dItem)
+{
+    qDebug()<<"downloadRequested";
+    qDebug()<<dItem->mimeType();
+    dItem->setSavePageFormat(QWebEngineDownloadItem::CompleteHtmlSaveFormat);//single HTML page and the resources
+    dItem->setPath(QCoreApplication::applicationDirPath()+"/faxuan.html");
+    connect(dItem,SIGNAL(finished()),this,SLOT(htmlDownloadFinished()));
+    dItem->accept();
+}
+
+void starPlug::htmlDownloadFinished()
+{
+    QLabel *label = new QLabel();
+    label->setPixmap(QCoreApplication::applicationDirPath()+"/faxuan_files/gc.html");
+    label->show();
 }
 

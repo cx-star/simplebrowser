@@ -41,7 +41,6 @@ private slots:
     void autoRun();
 
     void haveAResultSlot(const QString&s);
-    QPair<bool, QVariant>  starPlug::syncRunJavaScript(QWebEnginePage *page, const QString &javascript, int msec);
 
     void Save(bool b_TotalNum,bool b_ErrorId,const QString& s);
     void copy(const QString& s);
@@ -57,6 +56,11 @@ private slots:
     void doExamHtml();
     void doExamNext();
 
+    void slot_captchaChanged(const QString & c);
+    void replyFinished(QNetworkReply *reply);
+
+    void downloadRequested(QWebEngineDownloadItem*dItem);
+    void htmlDownloadFinished();
 private:
     Ui::starPlug *ui;
 
@@ -85,6 +89,7 @@ private:
     QStringList userInfoAll,userInfoCur,userStudyResult;
     int userInfoListIndex;
     void getTodayResult(int* todayNum, int* TotalNum, QString *curName);
+    QPair<bool, QVariant>  syncRunJavaScript(QWebEnginePage *page, const QString &javascript, int msec);
 
     QSettings *m_setting;
 
@@ -96,6 +101,10 @@ private:
     int allPageNewAdd;
     bool doExamHaveUnKnownId,doExamOneOver;
     int TiMuIndexLast;
+
+    QNetworkAccessManager *net_manager;
+
+
 };
 
 #endif // STARPLUG_H
