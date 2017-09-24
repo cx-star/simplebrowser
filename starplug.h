@@ -80,7 +80,7 @@ private:
     QTimer *m_timer,*m_timerDoExam;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
-    enum autoRunType{autoRunMain,autoRunLogin,autoRunNum,autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunCheckNum,autoRunBindQQ,
+    enum autoRunType{autoRunMain,autoRunCheckCaptcha,autoRunLogin,autoRunNum,autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunCheckNum,autoRunBindQQ,
                      autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunDoExam,autoRunDoExamOver,autoRunDoExamDealOver,autoRunExitTimer,autoRunPopwinConfirm,
                     autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
@@ -103,8 +103,12 @@ private:
     int TiMuIndexLast;
 
     QNetworkAccessManager *net_manager;
+    QString m_captcha;
+    QMap<QString,QStringList> oneCharDataMap;
 
-
+    QRect PixelList2(QStringList list) const;
+    QStringList getStrLFromStrL(QStringList list, QRect rect);
+    QString autoOCR(const QList<QStringList> &ll);
 };
 
 #endif // STARPLUG_H

@@ -70,6 +70,15 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     }
     ui->pushButtonExam->setText(QString("%1").arg(m_exam.size()));
 
+    QFile file2;
+    file2.setFileName(QCoreApplication::applicationDirPath()+"/oneChar.dat");
+    file2.open(QIODevice::ReadOnly);
+    if(file2.isOpen()){
+        QDataStream in(&file2);
+        in>>oneCharDataMap;
+        file2.close();
+    }
+
     m_dialogExam = new DialogExam();
     connect(this,SIGNAL(signal_examDataChanged(QMap<QString,QStringList>)),m_dialogExam,SLOT(updateExamData(QMap<QString,QStringList>)));
     emit signal_examDataChanged(m_exam);
@@ -80,6 +89,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
     connect(net_manager, SIGNAL(finished(QNetworkReply*)),
           this, SLOT(replyFinished(QNetworkReply*)));
 
+    m_WebViewLogin=m_WebViewNum=m_WebViewClass=m_WebViewExam=0;
 }
 
 starPlug::~starPlug()
@@ -119,7 +129,6 @@ void starPlug::on_pushButton_clicked()
         QWebEnginePage *page = m_TabWindow->currentWebView()->page();
         QAction *a = page->action(QWebEnginePage::SavePage);
         a->activate(QAction::Trigger);
-
     }
         break;
     default:
@@ -156,34 +165,16 @@ void starPlug::slot_viewLoadFinished(bool b)
     qDebug()<<b<<" view_loadFinished "<<autoRunIndex;
     if(QObject::sender()==m_WebViewLogin){//首次登陆；验证总分数登陆；下一个人登陆
         switch (autoRunIndex) {
-        case autoRunMain:
+        case autoRunCheckCaptcha:
         {
             qDebug()<<"主页载入成功，请输入验证码";
-            //QMessageBox::about(this,"输入验证码",QString("主页载入：%1\r\n请在网页正确位置输入验证码\r\n（仅输入验证么即可）").arg(b));
-//            QPair<bool,QVariant> r = syncRunJavaScript(m_WebViewLogin->page(),"$('#captcha').attr('src')",5*1000);
-//            if(r.first){
-//                QString s = r.second.toString();
-//                slot_captchaChanged(s);
-//            }
-//            qDebug()<<r.first<<r.second;
-
-//            QString runJavaScriptResult;//
-//            QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
-//            m_TabWindow->currentWebView()->page()->runJavaScript("$('#captcha').attr('src')",[loop,&runJavaScriptResult] (const QVariant& r){
-//                if(loop->isRunning()){
-//                    runJavaScriptResult = r.toString();
-//                    loop->quit();
-//                }
-//            });
-//            //loop->exec();
-//            qDebug()<<runJavaScriptResult;
-            //slot_captchaChanged(runJavaScriptResult);
-
-            //m_WebViewLogin->page()->runJavaScript("$('#captcha').attr('src')",[this](const QVariant& r){emit slot_captchaChanged(r.toString());});
-
-        }
+            m_WebViewLogin->page()->profile()->disconnect();
             connect(m_WebViewLogin->page()->profile(), SIGNAL(downloadRequested(QWebEngineDownloadItem*)),
                     this, SLOT(downloadRequested(QWebEngineDownloadItem*)));
+            QWebEnginePage *page = m_TabWindow->currentWebView()->page();
+            QAction *a = page->action(QWebEnginePage::SavePage);
+            a->activate(QAction::Trigger);
+        }
             break;
         default:
             qDebug()<<"QObject::sender()==m_WebViewLogin default"<<autoRunIndex;
@@ -515,14 +506,33 @@ void starPlug::autoRun(int index)
     case autoRunMain://打开首页
         for(int i=tabCount-1;i>=0;i--)
             m_TabWindow->closeTab(i);//关闭所有页面，最后一个页面被关闭后会新建一个空页面
+        m_TabWindow->currentWebView()->page()->profile()->clearHttpCache();//这句无效
+        m_TabWindow->currentWebView()->page()->profile()->cookieStore()->deleteAllCookies();//执行后不能登录。。。
+        if(m_WebViewLogin)
+            m_WebViewLogin->disconnect(SLOT(slot_viewLoadFinished(bool)));
+        if(m_TabWindow)
+            m_TabWindow->disconnect(SLOT(slot_newTabViewCreated()));
         m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
         m_WebViewLogin = m_TabWindow->currentWebView();
         connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//QMessageBox
         connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(slot_newTabViewCreated()));//autoRunLogin-autoRunNum
-        toNext = false;needTimer = false;break;//view_loadFinished
+        m_captcha.clear();
+        toNext = true;needTimer = true;break;//view_loadFinished--OCR
+    case autoRunCheckCaptcha:
+        if(m_captcha.isEmpty()){
+            toNext = false;needTimer=true;break;
+        }
+        if(m_captcha.size()==4 && !m_captcha.contains('*')){
+            toNext= true;needTimer=true;
+        }else{
+            autoRunIndex = autoRunMain;
+            toNext = false;needTimer=true;
+        }
+        break;
     case autoRunLogin://登录
         m_WebViewLogin->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentUserId()));//账号错误，getCurrentUserId=-1
         m_WebViewLogin->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg(getCurrentPassword()));
+        m_WebViewLogin->page()->runJavaScript(QString("$('#code').val('%1')").arg(m_captcha));
         if(userInfoListIndex!=-1){
             m_WebViewLogin->page()->runJavaScript("$('.close_button').click()");//关闭账号密码错误的提示
             m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
@@ -553,14 +563,14 @@ void starPlug::autoRun(int index)
         break;
     case autoRunReLogin:
         if(m_TabWindow->currentWebView()==m_WebViewLogin){
-            m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");
+            m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");//再次点击主页面登陆
         }
         toNext = false;needTimer = false;//newTabViewCreated中->autoRunReNum
         break;
     case autoRunReNum:        //第二次登陆
         waitViewNum(toNext,needTimer);
         //未成功toNext = false;needTimer = true;
-        //  成功toNext = false;needTimer = false;connect view_loadFinished:autoRunReNum->autoRunReNumReload
+        //  成功toNext = false;needTimer = false;connect view_loadFinished->autoRunReNum+1
         break;
     case autoRunCheckNum:
     {
@@ -584,8 +594,6 @@ void starPlug::autoRun(int index)
             m_WebViewNum->disconnect();
             m_TabWindow->closeTab(m_TabWindow->currentIndex());
             qDebug()<<curResult;
-            //m_WebViewLogin->page()->profile()->clearHttpCache();这句无效
-            //m_WebViewLogin->page()->profile()->cookieStore()->deleteAllCookies();执行后不能登录。。。
             toNext = true;needTimer = true;break;
         }
         toNext = true;needTimer = true;break;
@@ -651,7 +659,7 @@ void starPlug::autoRun(int index)
 
     case autoRunReNumReload:
         m_WebViewNum->reload();
-        toNext = false;needTimer = false;break;
+        toNext = false;needTimer = false;break;//slot_viewLoadFinished中autoRunGetResult
     case autoRunGetResult:
         getTodayResult(0,0,0);
         m_WebViewNum->disconnect();
@@ -662,7 +670,7 @@ void starPlug::autoRun(int index)
         bool b= ui->checkBox->isChecked();
         if(b){
             toNext = b;
-            autoRunIndex=autoRunLogin-1;//退回到autoRunLogin，在autoRunCheckNum中
+            autoRunIndex=autoRunMain-1;//退回到autoRunLogin，在autoRunCheckNum中
         }
     }
         needTimer = true;break;
@@ -811,6 +819,30 @@ $("h3")
 //            }
 //        }
 //    }
+
+//使用syncRunJavaScript获取验证码地址失败，不明原因。。。
+//QMessageBox::about(this,"输入验证码",QString("主页载入：%1\r\n请在网页正确位置输入验证码\r\n（仅输入验证么即可）").arg(b));
+//            QPair<bool,QVariant> r = syncRunJavaScript(m_WebViewLogin->page(),"$('#captcha').attr('src')",5*1000);
+//            if(r.first){
+//                QString s = r.second.toString();
+//                slot_captchaChanged(s);
+//            }
+//            qDebug()<<r.first<<r.second;
+
+//            QString runJavaScriptResult;//
+//            QSharedPointer<QEventLoop> loop = QSharedPointer<QEventLoop>(new QEventLoop());
+//            m_TabWindow->currentWebView()->page()->runJavaScript("$('#captcha').attr('src')",[loop,&runJavaScriptResult] (const QVariant& r){
+//                if(loop->isRunning()){
+//                    runJavaScriptResult = r.toString();
+//                    loop->quit();
+//                }
+//            });
+//            //loop->exec();
+//            qDebug()<<runJavaScriptResult;
+//slot_captchaChanged(runJavaScriptResult);
+
+//m_WebViewLogin->page()->runJavaScript("$('#captcha').attr('src')",[this](const QVariant& r){emit slot_captchaChanged(r.toString());});
+
 
 void starPlug::on_pushButtonExam_clicked()
 {
@@ -1009,11 +1041,115 @@ void starPlug::downloadRequested(QWebEngineDownloadItem *dItem)
     connect(dItem,SIGNAL(finished()),this,SLOT(htmlDownloadFinished()));
     dItem->accept();
 }
+QRect starPlug::PixelList2(QStringList list) const
+{
+    int max = list.size()-1;
+    int widStart(0),widEnd(0),heightStart(max),heightEnd(0);
+    bool findS(false);
+    for(int i=0;i<list.size();i++){
+        QString hLine = list.at(i);
+        if(!findS){
+            findS = hLine.contains('1');
+            widStart = i;
+        }
+        if(findS){
+            if(!hLine.contains('1')){
+                widEnd = i-1;
+                break;
+            }else
+                widEnd = i;
+            heightStart = qMin(heightStart,hLine.indexOf('1'));
+            heightEnd = qMax(heightEnd,hLine.lastIndexOf('1'));
+        }
+    }
 
+    return QRect(widStart,heightStart,widEnd-widStart+1,heightEnd-heightStart+1);
+}
+
+QStringList starPlug::getStrLFromStrL(QStringList list, QRect rect)
+{
+    int startW = rect.x();
+    int endW = startW+rect.width();
+    int startH = rect.y();
+
+    QStringList rList;
+    for(int i=startW;i<endW;i++){
+        QString lineH = list.at(i);
+        rList.append(lineH.mid(startH,rect.height()));
+    }
+    return rList;
+}
+QString starPlug::autoOCR(const QList<QStringList> &ll)
+{
+    QString rt;
+    foreach (QStringList lr, ll) {
+        QMapIterator<QString,QStringList> i(oneCharDataMap);
+        QString key;
+        while(i.hasNext()){
+            i.next();
+            if(lr==i.value()){
+                key = i.key();
+                break;
+            }
+        }
+        if(!key.isEmpty()){
+            rt.append(key.mid(0,key.indexOf('-')));
+        }else
+            rt.append('*');
+    }
+    return rt;
+}
 void starPlug::htmlDownloadFinished()
 {
-    QLabel *label = new QLabel();
-    label->setPixmap(QCoreApplication::applicationDirPath()+"/faxuan_files/gc.html");
-    label->show();
+    QImage img;
+    bool b = img.load(QCoreApplication::applicationDirPath()+"/faxuan_files/gc.html");
+    if(!b){
+        qDebug()<<"load fail";
+        return;
+    }
+
+    int RGB(380),R(123),G(128),B(123);
+    int imgH = img.height();
+    int imgW = img.width();
+
+    QImage img_t(imgW,imgH,QImage::Format_RGB888);
+
+    for(int w=0;w<imgW;w++){
+        for(int h=0;h<imgH;h++){
+            QColor c = img.pixelColor(w,h);
+            if((c.red()+c.green()+c.blue())<RGB && (c.red()<R || c.green()<G || c.blue()<B) ){
+                img_t.setPixel(w,h,QColor(0,0,0).rgb());
+            }else
+                img_t.setPixel(w,h,QColor(255,255,255).rgb());
+        }
+    }
+
+    QStringList t_list;//将打开图片转换成字符串列表
+    QImage t_img = img_t.convertToFormat(QImage::Format_Mono);
+    for(int w=0;w<t_img.width();w++){
+        QString s;
+        for(int h=0;h<t_img.height();h++){
+            s.append(t_img.pixelColor(w,h).red()==255?"0":"1");//1为有，0为无
+        }
+        t_list.append(s);
+    }
+
+    QList<QStringList> fourCharListList;
+    while(1){
+        QRect rect = PixelList2(t_list);//一个个的获取t_list中单独字符区域
+        //qDebug()<<rect<<" "<<rect.topLeft()<<" "<<rect.topRight()<<" "<<rect.bottomLeft()<<" "<<rect.bottomRight();
+        if(rect.isValid()){
+            QStringList oneCharList = getStrLFromStrL(t_list,rect);//将指定区域转换成字符串列表，即一个字母的图形字符串列表
+            fourCharListList.append(oneCharList);
+            for(int i=rect.x();i<rect.x()+rect.width();i++){//将已获取区域清零，以显示下一个
+                if(i<t_list.size())
+                    t_list[i].fill('0');
+            }
+        }else
+            break;
+    }
+    qDebug()<<"fourCharListList"<<fourCharListList.size();
+    m_captcha = autoOCR(fourCharListList);
+    qDebug()<<"OCR:"<<m_captcha;
 }
 
