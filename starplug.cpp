@@ -39,7 +39,9 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
         if(s.startsWith("421381043")){
             m_setting->beginGroup(s);
             if(m_setting->value("isVaild").toBool()){
-                if( m_setting->value("Taday").toString()==QDate::currentDate().toString("yy-MM-dd") && m_setting->value("TadayNum").toInt()==150){
+                if( (m_setting->value("Taday").toString()==QDate::currentDate().toString("yy-MM-dd")
+                     && m_setting->value("TadayNum").toInt()==150)
+                        || m_setting->value("TotalNum").toInt()>2400){
                     qDebug()<<QString("已学满:%1 %2").arg(m_setting->value("name").toString()).arg(s);
                 }else{
                     QString t = QString("%1\t%2\t%3\t%4\t%5")
