@@ -44,6 +44,12 @@
    </item>
    <item>
     <widget class="QPushButton" name="pushButtonLogin">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="toolTip">
+      <string>自动登录，此按钮不需要</string>
+     </property>
      <property name="text">
       <string>登录</string>
      </property>
@@ -68,6 +74,9 @@
    </item>
    <item>
     <widget class="QPushButton" name="pushButtonGetExam">
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; color:#008000;&quot;&gt;当网页地址中包含courseware_1_t时，自动打开学习界面&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
      <property name="text">
       <string>获取题库</string>
      </property>
@@ -75,6 +84,9 @@
    </item>
    <item>
     <widget class="QPushButton" name="pushButtonExam">
+     <property name="toolTip">
+      <string>保存数据到文件</string>
+     </property>
      <property name="text">
       <string>题量</string>
      </property>
@@ -82,6 +94,9 @@
    </item>
    <item>
     <widget class="QCheckBox" name="checkBox_2">
+     <property name="toolTip">
+      <string>显示题库界面</string>
+     </property>
      <property name="text">
       <string>题库</string>
      </property>
