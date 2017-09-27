@@ -511,9 +511,9 @@ void starPlug::autoRun(int index)
         m_TabWindow->currentWebView()->page()->profile()->clearHttpCache();//这句无效
         m_TabWindow->currentWebView()->page()->profile()->cookieStore()->deleteAllCookies();//执行后不能登录。。。
         if(m_WebViewLogin)
-            m_WebViewLogin->disconnect(SLOT(slot_viewLoadFinished(bool)));
+            m_WebViewLogin->disconnect(this);
         if(m_TabWindow)
-            m_TabWindow->disconnect(SLOT(slot_newTabViewCreated()));
+            m_TabWindow->disconnect(this);//myObject->disconnect(myReceiver);应用对象this,而不是具体的接受者
         m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
         m_WebViewLogin = m_TabWindow->currentWebView();
         connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//QMessageBox
