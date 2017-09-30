@@ -47,7 +47,7 @@ private slots:
 
     void slot_tabUrlChanged(QUrl url);
     void on_pushButtonExam_clicked();
-    void dealExam();
+    void dealExamAnswer();
     void on_checkBox_2_clicked();
     void on_pushButtonGetExam_clicked();
     void runExamJs();

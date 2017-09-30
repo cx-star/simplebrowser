@@ -116,7 +116,7 @@ void starPlug::on_pushButton_clicked()
         break;
     case 4:
     {
-        dealExam();
+        dealExamAnswer();
         //QRegExp
     }
         break;
@@ -216,7 +216,7 @@ void starPlug::slot_viewLoadFinished(bool b)
             dealExam3over = false;//不再次进入
             qDebug()<<"m_WebViewExam 3:"<<m_WebViewExam->url().toString();
         }else if(dealExam4over && m_WebViewExam->url().toString().contains("exercies_4_t")){//答案
-            QTimer::singleShot(3*1000,this,SLOT(dealExam()));
+            QTimer::singleShot(3*1000,this,SLOT(dealExamAnswer()));
             dealExam4over = false;//不再次进入
             qDebug()<<"m_WebViewExam 4:"<<m_WebViewExam->url().toString();
         }else if(doExamMode3 && m_WebViewExam->url().toString().contains("exercies_3_t")){//做题
@@ -344,7 +344,7 @@ void starPlug::getTodayResult(int* todayNum,int* TotalNum, QString* curName)
         *curName = m_curName;
 }
 
-void starPlug::dealExam()
+void starPlug::dealExamAnswer()//获取答案
 {
     QString html;
     QWebEnginePage *page = m_TabWindow->currentWebView()->page();
@@ -406,7 +406,7 @@ void starPlug::dealExam()
     qDebug()<<QString("第%1页，共%2页").arg(curPage).arg(totalPage);
     if(curPage!=totalPage){
         m_WebViewExam->page()->runJavaScript("sps.changePage('next')");
-        QTimer::singleShot(2*1000,this,SLOT(dealExam()));
+        QTimer::singleShot(2*1000,this,SLOT(dealExamAnswer()));
         qDebug()<<"next page";
     }else{
         doExamHaveUnKnownId = false;
@@ -511,9 +511,9 @@ void starPlug::autoRun(int index)
         m_TabWindow->currentWebView()->page()->profile()->clearHttpCache();//这句无效
         m_TabWindow->currentWebView()->page()->profile()->cookieStore()->deleteAllCookies();//执行后不能登录。。。
         if(m_WebViewLogin)
-            m_WebViewLogin->disconnect(this);
+            m_WebViewLogin->disconnect(this,SLOT(slot_viewLoadFinished(bool)));
         if(m_TabWindow)
-            m_TabWindow->disconnect(this);//myObject->disconnect(myReceiver);应用对象this,而不是具体的接受者
+            m_TabWindow->disconnect(this,SLOT(slot_newTabViewCreated()));//myObject->disconnect(myReceiver);应用对象this,而不是具体的slot
         m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
         m_WebViewLogin = m_TabWindow->currentWebView();
         connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//QMessageBox
@@ -639,7 +639,7 @@ void starPlug::autoRun(int index)
     case autoRunDoExamOver:
         m_WebViewExam->disconnect();
         if(doExamHaveUnKnownId){
-            dealExam();//结束后会关闭m_WebViewExam
+            dealExamAnswer();//结束后会关闭m_WebViewExam
         }else{
             m_TabWindow->closeTab(m_TabWindow->currentIndex());
         }
