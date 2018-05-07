@@ -38,7 +38,7 @@
    <item>
     <widget class="QPushButton" name="pushButton">
      <property name="text">
-      <string>打开首页</string>
+      <string>执行</string>
      </property>
     </widget>
    </item>

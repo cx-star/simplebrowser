@@ -22,7 +22,7 @@ starPlug::starPlug(TabWidget*tw, QWidget *parent) :
 
     errorNeedReboot = false;
 
-    m_comboBoxList<<"打开首页"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"star"<<"save page";
+    m_comboBoxList<<"自动"<<"登录"<<"执行"<<"执行带结果"<<"dealExam"<<"填入star"<<"save page";
     ui->comboBox->addItems(m_comboBoxList);
     autoRunIndex = 0;
 
@@ -604,8 +604,8 @@ void starPlug::autoRun(int index)
         m_TabWindow->currentWebView()->page()->runJavaScript("bps.remCook('bindQQ')");
         toNext = true;needTimer = true;break;
     case autoRunOpenClass://打开计时界面
-        //m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href')");
-        m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2017）&d=AA==']:first\").attr('href'))");
+        //m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2018）&d=AA==']:first\").attr('href')");
+        m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2018）&d=AA==']:first\").attr('href'))");
         qDebug()<<"href";
         toNext = false;needTimer = false;break;//到newTabViewCreated中->autoRunClassOpened
         break;
@@ -631,7 +631,7 @@ void starPlug::autoRun(int index)
         qDebug()<<"startTiming";
         toNext = true;needTimer = true;break;
     case autoRunDoExam://做练习题
-        m_WebViewClass->page()->runJavaScript("sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')");
+        m_WebViewClass->page()->runJavaScript("sps.detail('2087','第一章　全面推进依法治国的重大战略布局','1')");
         //同时激活newTabViewCreated（不做处理），tabUrlChanged，连接m_WebViewClass到view_loadFinished
         dealExam3over = false; dealExam4over = false; doExamMode3 = true; doExamMode4 = true; doExamHaveUnKnownId = false;doExamOneOver=false;
         toNext = false;needTimer = false;break;
@@ -876,18 +876,18 @@ void starPlug::on_pushButtonGetExam_clicked()
             ui->pushButtonGetExam->setText("结束获取");
             m_WebViewClass = m_TabWindow->currentWebView();
             if(startExamJSList.isEmpty()){
-                startExamJSList.append("sps.detail('979','第一章　全面推进依法治国的重大战略布局','1')");
-                startExamJSList.append("sps.detail('980','第一章　全面推进依法治国的重大战略布局','1')");
-                startExamJSList.append("sps.detail('981','第三章　 七五普法规划知识','1')");
-                startExamJSList.append("sps.detail('982','第四章　法治思维和法治方式','1')");
-                startExamJSList.append("sps.detail('983','第五章　宪法和宪法相关法','1')");
-                startExamJSList.append("sps.detail('984','第六章　公务员简明法律知识','1')");
-                startExamJSList.append("sps.detail('985','第七章　公务员法律制度','1')");
-                startExamJSList.append("sps.detail('986','第八章　公务员依法行政概述','1')");
-                startExamJSList.append("sps.detail('987','第九章　公务员依法行政法律制度','1')");
-                startExamJSList.append("sps.detail('988','第十章　公务员依法行政常见违法问题','1')");
-                startExamJSList.append("sps.detail('989','第十一章　公务员廉政建设和常见职务犯罪预防','1')");
-                startExamJSList.append("sps.detail('990','第十二章　党内法规的学习宣传','1')");
+                startExamJSList.append("sps.detail('2087','第一章　全面推进依法治国的重大战略布局','1')");
+                startExamJSList.append("sps.detail('2088','第一章　全面推进依法治国的重大战略布局','1')");
+                startExamJSList.append("sps.detail('2089','第三章　 七五普法规划知识','1')");
+                startExamJSList.append("sps.detail('2090','第四章　法治思维和法治方式','1')");
+                startExamJSList.append("sps.detail('2091','第五章　宪法和宪法相关法','1')");
+                startExamJSList.append("sps.detail('2092','第六章　公务员简明法律知识','1')");
+                startExamJSList.append("sps.detail('2093','第七章　公务员法律制度','1')");
+                startExamJSList.append("sps.detail('2094','第八章　公务员依法行政概述','1')");
+                startExamJSList.append("sps.detail('2095','第九章　公务员依法行政法律制度','1')");
+                startExamJSList.append("sps.detail('2096','第十章　公务员依法行政常见违法问题','1')");
+                startExamJSList.append("sps.detail('2097','第十一章　公务员廉政建设和常见职务犯罪预防','1')");
+                startExamJSList.append("sps.detail('2098','第十二章　党内法规的学习宣传','1')");
             }
             startExamJSListIndex = 0;
             startExamJSListIndexBack = 0;
