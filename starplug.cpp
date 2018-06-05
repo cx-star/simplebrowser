@@ -167,9 +167,10 @@ void starPlug::slot_viewLoadFinished(bool b)
     qDebug()<<b<<" view_loadFinished "<<autoRunIndex;
     if(QObject::sender()==m_WebViewLogin){//首次登陆；验证总分数登陆；下一个人登陆
         switch (autoRunIndex) {
-        case autoRunCheckCaptcha:
+        case autoRunCheckCaptchaAndJquery:
         {
-            qDebug()<<"主页载入成功，请输入验证码";
+            qDebug()<<"载入成功，即将下载并OCR";
+            m_captchaWaitTimes = 0;//等待OCR，防止autoRun退回（刷新）
             m_WebViewLogin->page()->profile()->disconnect();
             connect(m_WebViewLogin->page()->profile(), SIGNAL(downloadRequested(QWebEngineDownloadItem*)),
                     this, SLOT(downloadRequested(QWebEngineDownloadItem*)));
@@ -503,38 +504,60 @@ void starPlug::autoRun(int index)
     autoRunIndex = index;
     bool toNext(false),needTimer(false);
     int tabCount = m_TabWindow->count();
+    bool resultTestJquery;//
 
     switch (index) {
     case autoRunMain://打开首页
         for(int i=tabCount-1;i>=0;i--)
             m_TabWindow->closeTab(i);//关闭所有页面，最后一个页面被关闭后会新建一个空页面
+        qDebug()<<"cachePath "<<m_TabWindow->currentWebView()->page()->profile()->cachePath();
         m_TabWindow->currentWebView()->page()->profile()->clearHttpCache();//这句无效
         m_TabWindow->currentWebView()->page()->profile()->cookieStore()->deleteAllCookies();//执行后不能登录。。。
         if(m_WebViewLogin)
             m_WebViewLogin->disconnect(this,SLOT(slot_viewLoadFinished(bool)));
         if(m_TabWindow)
             m_TabWindow->disconnect(this,SLOT(slot_newTabViewCreated()));//myObject->disconnect(myReceiver);应用对象this,而不是具体的slot
-        m_browserWindow->loadPage("http://www.faxuan.net/site/hubei/");//
+        m_browserWindow->loadPage("http://www.faxuan.net/bps/site/42.html");//
         m_WebViewLogin = m_TabWindow->currentWebView();
         connect(m_WebViewLogin,SIGNAL(loadFinished(bool)),this,SLOT(slot_viewLoadFinished(bool)));//QMessageBox
         connect(m_TabWindow,SIGNAL(newTabCreated()),this,SLOT(slot_newTabViewCreated()));//autoRunLogin-autoRunNum
         m_captcha.clear();
+        m_captchaWaitTimes = 0;
         toNext = true;needTimer = true;break;//view_loadFinished--OCR
-    case autoRunCheckCaptcha:
-        if(m_captcha.isEmpty()){
+    case autoRunCheckCaptchaAndJquery:
+        if(m_captcha.isEmpty()){//页面还没有载入完成
+            qDebug()<<"页面还没有载入完成 ";
+            m_captchaWaitTimes++;
+            if(m_captchaWaitTimes==5){
+                autoRunIndex = autoRunMain;//needTimer 5次*1秒后，刷新
+            }
             toNext = false;needTimer=true;break;
         }
-        if(m_captcha.size()==4 && !m_captcha.contains('*')){
-            toNext= true;needTimer=true;
-        }else{
+
+        resultTestJquery = syncRunJavaScript(m_WebViewLogin->page(),"typeof jQuery !='undefined'",500).second.toBool();
+
+        if(!resultTestJquery){//Jquery没有加载成功
+            qDebug()<<"Jquery没有加载成功";
+
             autoRunIndex = autoRunMain;
-            toNext = false;needTimer=true;
+            toNext = false;needTimer=true;break;
         }
+
+        if(m_captcha.size()==4 && !m_captcha.contains('*')){//验证码成功
+            qDebug()<<"验证码成功 ";
+            toNext= true;needTimer=true;break;
+        }
+        qDebug()<<"autoRunCheckCaptchaAndJquery break;";
+        autoRunIndex = autoRunMain;
+        toNext = false;needTimer=true;
         break;
     case autoRunLogin://登录
-        m_WebViewLogin->page()->runJavaScript(QString("$('#user_name').val('%1')").arg(getCurrentUserId()));//账号错误，getCurrentUserId=-1
-        m_WebViewLogin->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg(getCurrentPassword()));
-        m_WebViewLogin->page()->runJavaScript(QString("$('#code').val('%1')").arg(m_captcha));
+//        m_WebViewLogin->page()->runJavaScript(QString("$('#userAccount').val('%1')").arg(getCurrentUserId()));//账号错误，getCurrentUserId=-1
+//        m_WebViewLogin->page()->runJavaScript(QString("$('#userPassword').val('%1')").arg(getCurrentPassword()));
+//        m_WebViewLogin->page()->runJavaScript(QString("$('#usercheckcode').val('%1')").arg(m_captcha));
+        m_WebViewLogin->page()->runJavaScript(QString("document.getElementById(\"userAccount\").value=\"%1\"").arg(getCurrentUserId()));//账号错误，getCurrentUserId=-1
+        m_WebViewLogin->page()->runJavaScript(QString("document.getElementById(\"userPassword\").value=\"%1\"").arg(getCurrentPassword()));
+        m_WebViewLogin->page()->runJavaScript(QString("document.getElementById(\"usercheckcode\").value=\"%1\"").arg(m_captcha));
         if(userInfoListIndex!=-1){
             m_WebViewLogin->page()->runJavaScript("$('.close_button').click()");//关闭账号密码错误的提示
             m_WebViewLogin->page()->runJavaScript("$('.login_button').click()");

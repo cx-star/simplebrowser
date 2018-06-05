@@ -80,7 +80,7 @@ private:
     QTimer *m_timer,*m_timerDoExam;
     void waitTimer(int t=1*1000);
     int autoRunIndex;
-    enum autoRunType{autoRunMain,autoRunCheckCaptcha,autoRunLogin,autoRunNum,autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunCheckNum,autoRunBindQQ,
+    enum autoRunType{autoRunMain,autoRunCheckCaptchaAndJquery,autoRunLogin,autoRunNum,autoRunCloseNumForReload,autoRunReLogin,autoRunReNum,autoRunCheckNum,autoRunBindQQ,
                      autoRunOpenClass,autoRunClassOpened,autoRunSetTimer,autoRunDoExam,autoRunDoExamOver,autoRunDoExamDealOver,autoRunExitTimer,autoRunPopwinConfirm,
                     autoRunReNumReload,autoRunGetResult,autoRunNext,
                     execLineEdit,execLineEditWithResult};
@@ -104,6 +104,7 @@ private:
 
     QNetworkAccessManager *net_manager;
     QString m_captcha;
+    int m_captchaWaitTimes;
     QMap<QString,QStringList> oneCharDataMap;
 
     QRect PixelList2(QStringList list) const;

@@ -66,7 +66,7 @@ TabWidget::TabWidget(QWidget *parent)
 
     connect(this, &QTabWidget::currentChanged, this, &TabWidget::handleCurrentChanged);
 
-    m_profile = new QWebEngineProfile();
+    m_profile = QWebEngineProfile::defaultProfile();
 }
 
 TabWidget::~TabWidget()
