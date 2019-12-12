@@ -1,4 +1,4 @@
-/****************************************************************************
+﻿/****************************************************************************
 **
 ** Copyright (C) 2016 The Qt Company Ltd.
 ** Contact: http://www.qt.io/licensing/
@@ -58,6 +58,7 @@ bool WebPage::certificateError(const QWebEngineCertificateError &error)
 {
     QWidget *mainWindow = view()->window();
     if (error.isOverridable()) {
+        return true;//默认忽略证书错误的提示2019年12月12日
         QDialog dialog(mainWindow);
         dialog.setModal(true);
         dialog.setWindowFlags(dialog.windowFlags() & ~Qt::WindowContextHelpButtonHint);

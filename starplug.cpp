@@ -122,8 +122,8 @@ void starPlug::on_pushButton_clicked()
         break;
     case 5:
     {
-        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#user_name').val('%1')").arg("4213810430098"));
-        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#user_pass').val('%1')").arg("cx153719"));
+        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#userAccount').val('%1')").arg("4213810430098"));
+        m_TabWindow->currentWebView()->page()->runJavaScript(QString("$('#userPassword').val('%1')").arg("cx153719"));
         break;
     }
     case 6:
@@ -528,7 +528,7 @@ void starPlug::autoRun(int index)
         if(m_captcha.isEmpty()){//页面还没有载入完成
             qDebug()<<"页面还没有载入完成 ";
             m_captchaWaitTimes++;
-            if(m_captchaWaitTimes==5){
+            if(m_captchaWaitTimes==20){
                 autoRunIndex = autoRunMain;//needTimer 5次*1秒后，刷新
             }
             toNext = false;needTimer=true;break;
@@ -628,7 +628,8 @@ void starPlug::autoRun(int index)
         toNext = true;needTimer = true;break;
     case autoRunOpenClass://打开计时界面
         //m_TabWindow->currentWebView()->page()->runJavaScript("location.href = $(\"[href$='考试复习指南（2018）&d=AA==']:first\").attr('href')");
-        m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2018）&d=AA==']:first\").attr('href'))");
+        //m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='考试复习指南（2019）&d=AA==']:first\").attr('href'))");
+        m_WebViewNum->page()->runJavaScript("window.open($(\"[href$='【视频】《反分裂国家法》解读 &d=AA==']\").attr('href'))");
         qDebug()<<"href";
         toNext = false;needTimer = false;break;//到newTabViewCreated中->autoRunClassOpened
         break;
