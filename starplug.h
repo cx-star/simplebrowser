@@ -1,19 +1,24 @@
-﻿#ifndef STARPLUG_H
+﻿
+#ifndef STARPLUG_H
 #define STARPLUG_H
 
 #include <QtNetwork>
 #include <QTimer>
 #include <QWidget>
 #include <QSettings>
-#include "browserwindow.h"
-#include "tabwidget.h"
-#include "webview.h"
+#include <QWebEngineDownloadItem>
+#include <QWebEnginePage>
 #include "stardialogexam.h"
+#include "webview.h"
+#include "browserwindow.h"
+
+class BrowserWindow;
+class TabWidget;
 
 namespace Ui {
 class starPlug;
 }
-class BrowserWindow;
+
 class starPlug : public QWidget
 {
     Q_OBJECT

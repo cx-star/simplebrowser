@@ -41,9 +41,9 @@
 #ifndef BROWSERWINDOW_H
 #define BROWSERWINDOW_H
 
+
 #include <QMainWindow>
 #include <QWebEnginePage>
-#include "starplug.h"
 
 QT_BEGIN_NAMESPACE
 class QProgressBar;

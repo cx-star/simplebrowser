@@ -54,6 +54,7 @@
 #include <QStatusBar>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include "starplug.h"
 
 BrowserWindow::BrowserWindow(QWidget *parent, Qt::WindowFlags flags)
     : QMainWindow(parent, flags)
